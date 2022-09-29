@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.example.bswj.mapper.renyiMapper">
+
+    <update id="updateRetailDetails">
+        update t1
+        set t1.priuserdefdecm2 = 1.13 * t2.price,t1.priuserdefdecm3 = t1.quantity * 1.13 * t2.price
+        from re_retail_b t1,ST_RDRecord_b t2,ST_RDRecord t3
+        where t1.idinventory = t2.idinventory  and t1.RdRecordCode = t3.code and t3.id = t2.idRDRecordDTO
+        and (t1.priuserdefdecm2 is null or  t1.priuserdefdecm2 = 0 )
+        and t2.price != 0 and t2.price is not null and t1.createdtime > '2022-07-01 23:59:59.617'
+    </update>
+
+
+    <update id="updateSadetails">
+        update t1
+        set t1.priuserdefdecm1 = t1.costPrice,t1.priuserdefdecm2 = t1.costPrice * t1.quantity
+        from SA_SaleDelivery_b t1,AA_Inventory t2
+        where t1.idinventory = t2.id  and t2.name  like '回收%' and t1.priuserdefdecm2 = 0.00000000000000 and t1.costPrice !=0
+    </update>
+
+
+    <select id="getCDDistricntKC" parameterType="java.lang.String" resultType="java.lang.Float">
+        /*select y1.ckname,y1.chname,y1.baseQuantity,y2.finalAmount*/
+        select isnull(sum(y2.finalAmount),0) as finalAmount
+        from(
+                select k3.name as ckname, k2.name as chname,k1.baseQuantity,k1.idwarehouse,k1.idinventory
+                from ST_NewCurrentStock k1,AA_Inventory k2,AA_Warehouse k3
+                where k1.propertyName = 'CurrentStock' and k1.idinventory = k2.id and k1.idwarehouse = k3.id )y1 ,
+            (select s1.idinventory,s1.idwarehouse,s1.AccountYearPeriod,s2.finalAmount
+             from (select idinventory,idwarehouse,max(AccountYearPeriod) as AccountYearPeriod
+                   from ST_SummaryBook where finalQuantity != 0
+                   group by idinventory,idwarehouse  ) s1,
+                  (select idinventory,idwarehouse,AccountYearPeriod,max(finalAmount) as finalAmount
+                   from ST_SummaryBook where finalQuantity != 0
+                   group by idinventory,idwarehouse,AccountYearPeriod ) s2
+             where s1.idinventory = s2.idinventory and s1.AccountYearPeriod = s2.AccountYearPeriod and s1.idwarehouse = s2.idwarehouse)y2
+        where y1.idinventory = y2.idinventory and y1.idwarehouse = y2.idwarehouse
+          and y1.ckname like  #{department} and y1.ckname not like '%全屋%' and y1.ckname not like '%汽车%' and y1.baseQuantity != 0
+    </select>
+
+    <select id="getCDDistricntPUorder" parameterType="java.lang.String" resultType="java.lang.Float">
+        select isnull(sum(y1.origDiscountPrice*y1.cc),0) as ddnow
+        from(
+                select t1.code,t2.IsClose,t2.idinventory,t2.origDiscountPrice,
+                       t2.quantity,t2.countQuantity, t2.countArrivalQuantity,(t2.quantity - isnull(t2.countQuantity,0) ) as cc
+                from PU_PurchaseOrder t1,PU_PurchaseOrder_b t2,AA_Warehouse t3
+                where t1.idwarehouse = t3.id and t1.id = t2.idPurchaseOrderDTO
+                  and t3.name not like '%全屋%' and t3.name not like '%汽车%' and t3.name like  #{department}
+                  and t2.quantity > isnull(t2.countQuantity,0)
+                  and t1.voucherState = 189 and t2.IsClose != 1)y1
+    </select>
+
+    <select id="getDistricntKC" parameterType="java.lang.String" resultType="java.lang.Float">
+        /*select y1.ckname,y1.chname,y1.baseQuantity,y2.finalAmount*/
+        select isnull(sum(y2.finalAmount),0) as finalAmount
+        from(
+                select k3.name as ckname, k2.name as chname,k1.baseQuantity,k1.idwarehouse,k1.idinventory
+                from ST_NewCurrentStock k1,AA_Inventory k2,AA_Warehouse k3
+                where k1.propertyName = 'CurrentStock' and k1.idinventory = k2.id and k1.idwarehouse = k3.id )y1 ,
+            (select s1.idinventory,s1.idwarehouse,s1.AccountYearPeriod,s2.finalAmount
+             from (select idinventory,idwarehouse,max(AccountYearPeriod) as AccountYearPeriod
+                   from ST_SummaryBook where finalQuantity != 0
+                   group by idinventory,idwarehouse  ) s1,
+                  (select idinventory,idwarehouse,AccountYearPeriod,max(finalAmount) as finalAmount
+                   from ST_SummaryBook where finalQuantity != 0
+                   group by idinventory,idwarehouse,AccountYearPeriod ) s2
+             where s1.idinventory = s2.idinventory and s1.AccountYearPeriod = s2.AccountYearPeriod and s1.idwarehouse = s2.idwarehouse)y2
+        where y1.idinventory = y2.idinventory and y1.idwarehouse = y2.idwarehouse
+          and y1.ckname like  #{department} and y1.ckname not like '%全屋%' and y1.ckname not like '%汽车%' and y1.baseQuantity != 0
+    </select>
+
+    <select id="getDistricntPUorder" parameterType="java.lang.String" resultType="java.lang.Float">
+        select isnull(sum(y1.origDiscountPrice*y1.cc),0) as ddnow
+        from(
+            select t1.code,t2.IsClose,t2.idinventory,t2.origDiscountPrice,
+                   t2.quantity,t2.countQuantity, t2.countArrivalQuantity,(t2.quantity - isnull(t2.countQuantity,0) ) as cc
+                from PU_PurchaseOrder t1,PU_PurchaseOrder_b t2,AA_Warehouse t3
+                where t1.idwarehouse = t3.id and t1.id = t2.idPurchaseOrderDTO
+                  and t3.name not like '%全屋%' and t3.name not like '%汽车%' and t3.name like  #{department}
+                  and t2.quantity > isnull(t2.countQuantity,0)
+                  and t1.voucherState = 189 and t2.IsClose != 1)y1
+    </select>
+
+    <update id="updateFKSQdesc" parameterType="java.lang.String">
+        update ARAP_PrepaymentRequisition set memo = memo + '(超额)'  where code = #{code}
+    </update>
+
+    <select id="getRetailDataListByCode" parameterType="java.lang.String" resultType="java.util.Map">
+        select t1.id,t2.id,isnull(t1.priuserdefnvc6,'') as priuserdefnvc6,t3.code as departmentCode,t4.code as personCode,
+        t6.code as warehouseCode,t2.idinventory,t7.code as inventoryCode,t2.quantity,t8.code as unitCode,
+        t2.taxprice,t1.VoucherDate,t8.name as unitName,t2.taxamount,t1.idbusitype
+        from re_retail t1,re_retail_b t2,AA_department t3,AA_person t4,AA_DR_Store t5,AA_warehouse t6,AA_inventory t7,AA_unit t8
+        where t1.code = #{code} and t1.id = t2.idRetailDTO and t1.idDepartment_Store = t3.id
+        and t1.idperson = t4.id and t1.idstore = t5.id and t5.idwarehouse = t6.id and t2.idinventory = t7.id
+        and t2.idbaseUnit = t8.id
+    </select>
+
+    <select id="getRetailSettleListByCode" parameterType="java.lang.String" resultType="java.util.Map">
+        select t1.amount,t2.code,isnull(t3.name,'') as name
+        from re_retail t0,RE_Retail_Payment t1,AA_SettleStyle t2
+        left join AA_BankAccount t3 on t2.idbankaccount = t3.id
+        where t1.idRetailDTO = t0.id and t1.idsettlestyle = t2.id  and t0.code = #{code}
+    </select>
+
+    <update id="updateReretailAStateByCode" parameterType="java.lang.String">
+        update RE_Retail set priuserdefnvc6 = '1' where code = #{code}
+    </update>
+</mapper>

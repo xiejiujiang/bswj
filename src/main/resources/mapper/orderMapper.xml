@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.example.bswj.mapper.orderMapper">
+
+    <select id="getDBAllOrgList" resultType="java.util.Map">
+        select id_num,code,AppKey,AppSecret,access_token,refresh_token,user_id,org_id,app_name,update_time from XXX_code_token
+    </select>
+
+    <update id="updateOrgToken" parameterType="java.util.Map">
+        update XXX_code_token set access_token = #{access_token},refresh_token = #{refresh_token},update_time = GETDATE()
+        where org_id = #{org_id}
+    </update>
+
+    <select id="getTokenByAppKey" parameterType="java.lang.String" resultType="java.lang.String">
+        select access_token from XXX_code_token where AppKey = #{AppKey}
+    </select>
+
+    <select id="getAppKeySecretByAppKey" parameterType="java.lang.String" resultType="java.util.Map">
+        select AppKey,AppSecret from XXX_code_token where org_id = #{OrgId}
+    </select>
+
+    <select id="getfjidByCode" parameterType="java.lang.String" resultType="java.util.Map">
+        select t2.id,t2.FileType,t2.FileSize,t2.FileName,t2.UploadPath
+        from SA_SaleDelivery t1,eap_attachmentinfo t2
+        where t1.code = #{code} and t1.id = t2.AssociateID
+        order by t2.id asc
+    </select>
+
+
+    <select id="getMobileByCode" parameterType="java.lang.String" resultType="java.lang.String">
+        select mobilePhoneNo  from AA_Person where code = #{code}
+    </select>
+
+    <update id="updateTSAorderFlag" parameterType="java.lang.String">
+        update SA_SaleDelivery set priuserdefnvc6 = 'HQ1.6' where code = #{code}
+    </update>
+
+    <select id="getTSAorderFlag" parameterType="java.lang.String" resultType="java.lang.String">
+        select priuserdefnvc6 from SA_SaleDelivery where code = #{code}
+    </select>
+
+    <update id="updateUploadHQState" parameterType="java.util.Map">
+        update SA_SaleDelivery set priuserdefnvc4 = #{flag} where code = #{code}
+    </update>
+
+    <update id="updateTOrderMemo" parameterType="java.util.Map">
+        update SA_SaleDelivery set memo = memo + #{memo} where code = #{code}
+    </update>
+
+    <select id="getUnuploadList" resultType="java.util.Map">
+        select code
+        from SA_SaleDelivery
+        where (priuserdefnvc4 is null or priuserdefnvc4 = '') and idsettlecustomer in (1724,1723)
+        and voucherState = 189 and voucherdate > '2022-07-24' and (priuserdefnvc6 is null or priuserdefnvc6 = '')
+        and (idproject not  in (1,2,8) or  idproject is null) and (memo not like '%差异自动生成%' or memo is null)
+    </select>
+</mapper>
