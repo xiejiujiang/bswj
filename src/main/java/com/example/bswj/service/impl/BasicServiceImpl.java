@@ -2,10 +2,12 @@ package com.example.bswj.service.impl;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.example.bswj.SAsubscribe.SACsubJsonRootBean;
 import com.example.bswj.mapper.orderMapper;
 import com.example.bswj.saentity.JsonRootBean;
 import com.example.bswj.service.BasicService;
 import com.example.bswj.utils.*;
+import com.sun.javafx.collections.MappingChange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -245,16 +247,16 @@ public class BasicServiceImpl implements BasicService {
                     "    \"voucherCode\": \""+voucherCode+"\"\n" +
                     "  }\n" +
                     "}";
-            String access_token = orderMapper.getTokenByAppKey("djrUbeB2");//appKey
+            String access_token = orderMapper.getTokenByAppKey("3uWZf0mu");//appKey
             String auditResult = HttpClient.HttpPost("/tplus/api/v2/SaleDeliveryOpenApi/UnAudit",auditjson,
-                    "djrUbeB2",
-                    "F707B3834D9448B2A81856DE4E42357A",
+                    "3uWZf0mu",
+                    "F07A56582E5DDBC8F68358940138DBF5",
                     access_token);
             JSONObject unauditjob = JSONObject.parseObject(auditResult);
             if(unauditjob.getString("code").contains("999")){//如果弃审失败，就再弃审一次 试试
                 auditResult = HttpClient.HttpPost("/tplus/api/v2/SaleDeliveryOpenApi/UnAudit",auditjson,
-                        "djrUbeB2",
-                        "F707B3834D9448B2A81856DE4E42357A",
+                        "3uWZf0mu",
+                        "F07A56582E5DDBC8F68358940138DBF5",
                         access_token);
             }
             LOGGER.info("-------------- 单号： " + voucherCode + "的弃审结果是：" + auditResult);
@@ -265,4 +267,157 @@ public class BasicServiceImpl implements BasicService {
         return result;
     }
 
+    @Override
+    public String createSaPuOrder(Map<String, String> params) {
+        String result = "";
+        try {
+            //关键是传入的这个 map 必须要包含 销售订单 需要的所有内容
+            String json = MapToJson.createSaPUOrderDTO(params);
+            result = HttpClient.HttpPost("/tplus/api/v2/saleOrder/Create",
+                    json,
+                    "3uWZf0mu",
+                    "F07A56582E5DDBC8F68358940138DBF5",
+                    params.get("token"));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        // 创建成功  result:null
+        return result;
+    }
+
+
+    @Override
+    public String createExpenseVoucher(Map<String,String> params){
+        String result = "";
+        try {
+            //关键是传入的这个 map 必须要包含 费用单 需要的所有内容
+            String json = MapToJson.createExpenseDTO(params);
+            result = HttpClient.HttpPost("/tplus/api/v2/expenseVoucher/CreateExpenseVoucher",
+                    json,
+                    "3uWZf0mu",
+                    "F07A56582E5DDBC8F68358940138DBF5",
+                    params.get("token"));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        // 创建成功  result:null
+        return result;
+    }
+
+
+    @Override
+    public String createIncomeVoucher(Map<String,String> params){
+        String result = "";
+        try {
+            //关键是传入的这个 map 必须要包含 费用单 需要的所有内容
+            String json = MapToJson.createIncomeDTO(params);
+            result = HttpClient.HttpPost("/tplus/api/v2/incomeVoucher/CreateIncomeVoucher",
+                    json,
+                    "3uWZf0mu",
+                    "F07A56582E5DDBC8F68358940138DBF5",
+                    params.get("token"));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        // 创建成功  result:null
+        return result;
+    }
+
+    @Override
+    public String createWLDW(Map<String,String> params){
+        String result = "";
+        try {
+            //关键是传入的这个 map 必须要包含 往来单位 需要的所有内容
+            String json = MapToJson.createWLDWDTO(params);
+            result = HttpClient.HttpPost("/tplus/api/v2/partner/Create",
+                    json,
+                    "3uWZf0mu",
+                    "F07A56582E5DDBC8F68358940138DBF5",
+                    params.get("token"));
+            if(result != null && !"".equals(result) && !result.contains("error")){
+                result = "{ \"result\":\"创建成功！\" }";
+            }else{
+                result = "{ \"result\":\"程序异常，请检查参数和逻辑！ 对应的 往来单位 编号是：\" }" + params.get("Code");
+            }
+            return result;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "{ \"result\":\"程序异常，请重试！ 对应的 往来单位 编号是：\" }" + params.get("Code");
+        }
+    }
+
+
+    @Override
+    public String createDepartment(Map<String,String> params){
+        String result = "";
+        try {
+            //关键是传入的这个 map 必须要包含 往来单位 需要的所有内容
+            String json = MapToJson.createDepartment(params);
+            result = HttpClient.HttpPost("/tplus/api/v2/department/Create",
+                    json,
+                    "3uWZf0mu",
+                    "F07A56582E5DDBC8F68358940138DBF5",
+                    params.get("token"));
+            // result:"83"
+            if(result != null && !"".equals(result) && result.contains("result")){
+                result = "{ \"result\":\"创建成功！\" }";
+            }else{
+                result = "{ \"result\":\"程序异常，请检查参数和逻辑！ 对应的部门编号是：\" }" + params.get("Code");
+            }
+            return result;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "{ \"result\":\"程序异常，请重试！ 对应的 部门编号是：\" }" + params.get("Code");
+        }
+    }
+
+
+    @Override
+    public String createUser(Map<String,String> params){
+        String result = "";
+        try {
+            //关键是传入的这个 map 必须要包含 往来单位 需要的所有内容
+            String json = MapToJson.createUser(params);
+            result = HttpClient.HttpPost("tplus/api/v2/person/Create",
+                    json,
+                    "3uWZf0mu",
+                    "F07A56582E5DDBC8F68358940138DBF5",
+                    params.get("token"));
+            // result:"83"
+            if(result != null && !"".equals(result) && result.contains("result")){
+                result = "{ \"result\":\"创建成功！\" }";
+            }else{
+                result = "{ \"result\":\"程序异常，请检查参数和逻辑！ 对应的员工编号是：\" }" + params.get("code");
+            }
+            return result;
+        }catch (Exception e) {
+            e.printStackTrace();
+            return "{ \"result\":\"程序异常，请重试！ 对应的 员工编号是：\" }" + params.get("code");
+        }
+    }
+
+
+    @Override
+    public String createInventory(SACsubJsonRootBean jrb, String token){
+        String result = "";
+        try {
+            //关键是传入的这个 map 必须要包含 往来单位 需要的所有内容
+            String json = "";//MapToJson.createInventory(jrb);
+            result = HttpClient.HttpPost("/tplus/api/v2/inventory/Create",
+                    json,
+                    "3uWZf0mu",
+                    "F07A56582E5DDBC8F68358940138DBF5",
+                    token);
+            if(result != null && "".equals(result)){
+                result = "{ \"result\":\"创建成功！\" }";
+            }else{
+                //result = "{ \"result\":\"程序异常，请检查参数和逻辑！ 对应的商品编号是：\" }" + jrb.get("code");
+            }
+            return result;
+        }catch (Exception e) {
+            e.printStackTrace();
+            //return "{ \"result\":\"程序异常，请重试！ 对应的商品编号是：\" }" + jrb.get("code");
+        }
+        return null;
+    }
 }

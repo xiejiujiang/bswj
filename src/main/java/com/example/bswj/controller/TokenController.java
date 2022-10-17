@@ -3,6 +3,7 @@ package com.example.bswj.controller;
 import com.alibaba.fastjson.JSONObject;
 import com.example.bswj.SAsubscribe.SACsubJsonRootBean;
 import com.example.bswj.mapper.orderMapper;
+import com.example.bswj.service.BasicService;
 import com.example.bswj.service.TestService;
 import com.example.bswj.utils.*;
 import org.slf4j.Logger;
@@ -18,6 +19,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,7 +32,7 @@ public class TokenController {
     private static final Logger LOGGER = LoggerFactory.getLogger(TokenController.class);
 
     @Autowired
-    private TestService testService;
+    private BasicService basicService;
 
     @Autowired
     private orderMapper orderMapper;
@@ -69,4 +72,151 @@ public class TokenController {
         }
         return "{ \"result\":\"success\" }";
     }
+
+    // ------------------------------------------------  以下是业务接口 -----------------------------------------------------//
+
+    //T+ 的 存货 创建接口
+    @RequestMapping(value="/createInventory", method = {RequestMethod.GET,RequestMethod.POST})
+    public @ResponseBody String createInventory(HttpServletRequest request, HttpServletResponse response) {
+        LOGGER.info("------------------- 小程序调用了T+的存货创建API -------------------");
+        try{
+            String today = new SimpleDateFormat("yyyyMMdd").format(new Date());//当日
+            String key = Md5.md5(today);
+            String sign = request.getParameter("sign");
+            if(sign != null && !"".equals(sign)){
+                String desStr = AESUtil.decrypt(sign,key);
+                JSONObject job = JSONObject.parseObject(desStr);
+                SACsubJsonRootBean jrb =  job.toJavaObject(SACsubJsonRootBean.class);//存货 接受 的参数 DTO
+                String token = orderMapper.getTokenByAppKey("3uWZf0mu");
+                return basicService.createInventory(jrb,token);
+            }else{
+                return "{ \"result\":\"参数不合格！\" }";
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            return "{ \"result\":\" T+存货创建 程序异常，请重试！\" } ";
+        }
+    }
+
+
+    //T+ 的 员工 创建接口
+    @RequestMapping(value="/createUser", method = {RequestMethod.GET,RequestMethod.POST})
+    public @ResponseBody String createUser(HttpServletRequest request, HttpServletResponse response) {
+        LOGGER.info("------------------- 小程序调用了T+的员工创建API -------------------");
+        try{
+            String today = new SimpleDateFormat("yyyyMMdd").format(new Date());//当日
+            String sign = request.getParameter("sign");
+            String name = request.getParameter("name");
+            String code = request.getParameter("code");
+            String departmentCode = request.getParameter("departmentCode");
+            String MobilePhoneNo = request.getParameter("MobilePhoneNo");
+            String token = orderMapper.getTokenByAppKey("3uWZf0mu");
+
+            if(sign != null && !"".equals(sign) && name != null && !"".equals(name) && code != null && !"".equals(code)
+                    && departmentCode != null && !"".equals(departmentCode) && MobilePhoneNo != null && !"".equals(MobilePhoneNo)
+                    && sign.equals(Md5.md5(code+name+departmentCode+MobilePhoneNo+today))){
+                Map<String,String> params = new HashMap<String,String>();
+                params.put("token",token);//请求token
+                params.put("departmentCode",departmentCode);
+                params.put("Code",code);
+                params.put("Name",name);
+                params.put("MobilePhoneNo",MobilePhoneNo);
+                return basicService.createUser(params);
+            }else{
+                return "{ \"result\":\"参数不合格！\" }";
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            return "{ \"result\":\"T+ 员工 程序异常，请重试！\" }";
+        }
+    }
+
+
+    //T+ 的 部门 创建接口
+    @RequestMapping(value="/createDepartment", method = {RequestMethod.GET,RequestMethod.POST})
+    public @ResponseBody String createDepartment(HttpServletRequest request, HttpServletResponse response) {
+        LOGGER.info("------------------- 小程序调用了T+的部门创建API -------------------");
+        try{
+            String today = new SimpleDateFormat("yyyyMMdd").format(new Date());//当日
+            String sign = request.getParameter("sign");
+            String name = request.getParameter("name");
+            String code = request.getParameter("code");
+            String parentCode = request.getParameter("parentCode");
+            String token = orderMapper.getTokenByAppKey("3uWZf0mu");
+
+            if(sign != null && !"".equals(sign) && name != null && !"".equals(name) && code != null && !"".equals(code)
+                    && parentCode != null && !"".equals(parentCode)
+                    && sign.equals(Md5.md5(code+name+parentCode+today))){
+                Map<String,String> params = new HashMap<String,String>();
+                params.put("token",token);//请求token
+                params.put("parentCode",parentCode);
+                params.put("Code",code);
+                params.put("Name",name);
+                return basicService.createDepartment(params);
+            }else{
+                return "{ \"result\":\"参数不合格！\" }";
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            return "{ \"result\":\"T+ 部门 程序异常，请重试！\" }";
+        }
+    }
+
+
+    //T+ 的 往来单位 创建接口
+    @RequestMapping(value="/createPatner", method = {RequestMethod.GET,RequestMethod.POST})
+    public @ResponseBody String createPatner(HttpServletRequest request, HttpServletResponse response) {
+        LOGGER.info("------------------- 小程序调用了T+的 往来单位 创建API -------------------");
+        try{
+            String today = new SimpleDateFormat("yyyyMMdd").format(new Date());//当日
+            String sign = request.getParameter("sign");
+            String name = request.getParameter("name");
+            String code = request.getParameter("code");
+            String parentCode = request.getParameter("parentCode");
+            String token = orderMapper.getTokenByAppKey("3uWZf0mu");
+
+            if(sign != null && !"".equals(sign) && name != null && !"".equals(name) && code != null && !"".equals(code)
+                    && parentCode != null && !"".equals(parentCode)
+                    && sign.equals(Md5.md5(code+name+parentCode+today))){
+                Map<String,String> params = new HashMap<String,String>();
+                params.put("token",token);//请求token
+
+                return basicService.createWLDW(params);
+            }else{
+                return "{ \"result\":\"参数不合格！\" }";
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            return "{ \"result\":\"T+ 往来单位 程序异常，请重试！\" }";
+        }
+    }
+
+
+    //T+ 的 销售订单 创建接口
+    @RequestMapping(value="/createSaPuOrder", method = {RequestMethod.GET,RequestMethod.POST})
+    public @ResponseBody String createSaPuOrder(HttpServletRequest request, HttpServletResponse response) {
+        LOGGER.info("------------------- 小程序调用了T+的 销售订单 创建API -------------------");
+        try{
+            String today = new SimpleDateFormat("yyyyMMdd").format(new Date());//当日
+            String sign = request.getParameter("sign");
+            String name = request.getParameter("name");
+            String code = request.getParameter("code");
+            String parentCode = request.getParameter("parentCode");
+            String token = orderMapper.getTokenByAppKey("3uWZf0mu");
+
+            if(sign != null && !"".equals(sign) && name != null && !"".equals(name) && code != null && !"".equals(code)
+                    && parentCode != null && !"".equals(parentCode)
+                    && sign.equals(Md5.md5(code+name+parentCode+today))){
+                Map<String,String> params = new HashMap<String,String>();
+
+                return basicService.createSaPuOrder(params);
+            }else{
+                return "{ \"result\":\"参数不合格！\" }";
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            return "{ \"result\":\"success\" }";
+        }
+    }
+
 }

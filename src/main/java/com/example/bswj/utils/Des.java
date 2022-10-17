@@ -49,10 +49,12 @@ public class Des {
 
 
     public static void main(String[] args) {
-        String qty = "-4";
-        if(Integer.valueOf(qty) < 0){
-            qty = "" + (0-Integer.valueOf(qty));
-        }
-        System.out.println(qty);
+        String res = "23948UDSOJDDEF9R8HDUQW0D9CJCNDSDFSBWCJ02RCRHJI23948UDSOJDDEF9R8HDUQW0D9CJCNDSDFSBWCJ02RCRHJI23948UDSOJDDEF9R8HDUQW0D9CJCNDSDFSBWCJ02RCRHJI23948UDSOJDDEF9R8HDUQW0D9CJCNDSDFSBWCJ02RCRHJI";
+        String key = Md5.md5("20221011");
+        System.out.println("res == " + res);
+        String enstr = desEncrypt(key,res);
+        System.out.println("enstr == " + enstr);
+        String destr = desDecrypt(key,enstr);
+        System.out.println("destr == " + destr);
     }
 }
