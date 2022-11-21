@@ -1,6 +1,8 @@
 package com.example.bswj.service;
 
 import com.example.bswj.SAsubscribe.SACsubJsonRootBean;
+import com.example.bswj.entity.xcx.XcxSaParam;
+import com.example.bswj.entity.xcxpu.XcxPuParam;
 import com.example.bswj.saentity.JsonRootBean;
 
 import java.util.List;
@@ -40,7 +42,7 @@ public interface BasicService {
     public String unAuditZDorder(String voucherCode);
 
     //创建销售订单详情接口
-    public String createSaPuOrder(Map<String,String> params);
+    public String createSaPuOrder(XcxSaParam xcxSaParam,String token);
 
     //创建费用单详情接口
     public String createExpenseVoucher(Map<String,String> params);
@@ -59,4 +61,12 @@ public interface BasicService {
 
     //创建商品
     public String createInventory(SACsubJsonRootBean jrb,String token);
+
+    String getWarehouseList(String Code,String token);
+
+    String getSaPuOrderList(String Code,String startDate,String endDate,String token);
+
+    String getBankNameList(String token);
+
+    String createPurchaseArrival(XcxPuParam xcxPuParam, String token);
 }

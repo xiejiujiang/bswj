@@ -2,6 +2,8 @@ package com.example.bswj.controller;
 
 import com.alibaba.fastjson.JSONObject;
 import com.example.bswj.SAsubscribe.SACsubJsonRootBean;
+import com.example.bswj.entity.xcx.XcxSaParam;
+import com.example.bswj.entity.xcxpu.XcxPuParam;
 import com.example.bswj.mapper.orderMapper;
 import com.example.bswj.service.BasicService;
 import com.example.bswj.service.TestService;
@@ -22,6 +24,7 @@ import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @CrossOrigin
@@ -59,7 +62,7 @@ public class TokenController {
             String params=buffer.readLine();
             JSONObject jsonObject = JSONObject.parseObject(params);
             String encryptMsg = jsonObject.getString("encryptMsg");
-            String destr = AESUtils.aesDecrypt(encryptMsg,"123456789012345x");
+            String destr = AESUtil.decrypt(encryptMsg,"123456789012345x");
             // {"id":"AC1C04B100013301500B4A9B012DB2EC","appKey":"A9A9WH1i","appId":"58","msgType":"SaleDelivery_Audit","time":"1649994072443","bizContent":{"externalCode":"","voucherID":"23","voucherDate":"2022/4/15 0:00:00","voucherCode":"SA-2022-04-0011"},"orgId":"90015999132","requestId":"86231b63-f0c2-4de1-86e9-70557ba9cd62"}
             JSONObject job = JSONObject.parseObject(destr);
             if("SaleDelivery_Audit".equals(job.getString("msgType"))){
@@ -84,7 +87,7 @@ public class TokenController {
             String key = Md5.md5(today);
             String sign = request.getParameter("sign");
             if(sign != null && !"".equals(sign)){
-                String desStr = AESUtil.decrypt(sign,key);
+                String desStr = EncryptUtil.decrypt(sign,key);
                 JSONObject job = JSONObject.parseObject(desStr);
                 SACsubJsonRootBean jrb =  job.toJavaObject(SACsubJsonRootBean.class);//存货 接受 的参数 DTO
                 String token = orderMapper.getTokenByAppKey("3uWZf0mu");
@@ -105,23 +108,23 @@ public class TokenController {
         LOGGER.info("------------------- 小程序调用了T+的员工创建API -------------------");
         try{
             String today = new SimpleDateFormat("yyyyMMdd").format(new Date());//当日
+            String key = Md5.md5(today);
             String sign = request.getParameter("sign");
-            String name = request.getParameter("name");
-            String code = request.getParameter("code");
-            String departmentCode = request.getParameter("departmentCode");
-            String MobilePhoneNo = request.getParameter("MobilePhoneNo");
-            String token = orderMapper.getTokenByAppKey("3uWZf0mu");
+            if(sign != null && !"".equals(sign)){
+                String desStr = EncryptUtil.decrypt(sign,key);
+                JSONObject job = JSONObject.parseObject(desStr);
+                SACsubJsonRootBean jrb =  job.toJavaObject(SACsubJsonRootBean.class);//员工 接受 的参数 DTO
+                String token = orderMapper.getTokenByAppKey("3uWZf0mu");
 
-            if(sign != null && !"".equals(sign) && name != null && !"".equals(name) && code != null && !"".equals(code)
-                    && departmentCode != null && !"".equals(departmentCode) && MobilePhoneNo != null && !"".equals(MobilePhoneNo)
-                    && sign.equals(Md5.md5(code+name+departmentCode+MobilePhoneNo+today))){
-                Map<String,String> params = new HashMap<String,String>();
+                /*Map<String,String> params = new HashMap<String,String>();
                 params.put("token",token);//请求token
                 params.put("departmentCode",departmentCode);
                 params.put("Code",code);
                 params.put("Name",name);
                 params.put("MobilePhoneNo",MobilePhoneNo);
-                return basicService.createUser(params);
+                basicService.createUser(jrb,token);
+                */
+                return null;
             }else{
                 return "{ \"result\":\"参数不合格！\" }";
             }
@@ -191,6 +194,7 @@ public class TokenController {
         }
     }
 
+    //------------------------------------------------------------------------------------------------------------//
 
     //T+ 的 销售订单 创建接口
     @RequestMapping(value="/createSaPuOrder", method = {RequestMethod.GET,RequestMethod.POST})
@@ -198,25 +202,155 @@ public class TokenController {
         LOGGER.info("------------------- 小程序调用了T+的 销售订单 创建API -------------------");
         try{
             String today = new SimpleDateFormat("yyyyMMdd").format(new Date());//当日
+            String key = Md5.md5(today).substring(0,16);
             String sign = request.getParameter("sign");
-            String name = request.getParameter("name");
-            String code = request.getParameter("code");
-            String parentCode = request.getParameter("parentCode");
-            String token = orderMapper.getTokenByAppKey("3uWZf0mu");
 
-            if(sign != null && !"".equals(sign) && name != null && !"".equals(name) && code != null && !"".equals(code)
-                    && parentCode != null && !"".equals(parentCode)
-                    && sign.equals(Md5.md5(code+name+parentCode+today))){
-                Map<String,String> params = new HashMap<String,String>();
+            LOGGER.info("-------- 销售订单api (空格转义前) sign == " + sign);
+            sign = sign.replaceAll(" ","+");
+            LOGGER.info("-------- 销售订单api (空格转义后) sign == " + sign);
 
-                return basicService.createSaPuOrder(params);
+            String token = orderMapper.getTokenByAppKey("3uWZf0mu");//3uWZf0mu(正式)
+            if(sign != null && !"".equals(sign)){
+                String parmaJosnStr = EncryptUtil.decrypt(sign,key);
+                LOGGER.info("-------- 小程序订单解密后的Str == " + parmaJosnStr);
+                JSONObject job = JSONObject.parseObject(parmaJosnStr);
+                XcxSaParam xcxSaParam =  job.toJavaObject(XcxSaParam.class);//销货单的订阅信息DTO
+                List<Map<String,Object>> saPuOrderList = orderMapper.getSaPuOrderList(xcxSaParam.getCode(),"","");
+                if("15".equals(xcxSaParam.getBusinessType()) && saPuOrderList != null && saPuOrderList.size() != 0){
+                    return "{ \"result\":\"订单已存在！\" }";
+                }else{
+                    return basicService.createSaPuOrder(xcxSaParam,token);
+                }
             }else{
                 return "{ \"result\":\"参数不合格！\" }";
             }
         }catch (Exception e){
             e.printStackTrace();
-            return "{ \"result\":\"success\" }";
+            return "{ \"result\":\"程序异常，请咨询开发！\"}";
         }
     }
 
+
+
+    //仓库查询接口
+    @RequestMapping(value="/getWarehouseList", method = {RequestMethod.GET,RequestMethod.POST})
+    public @ResponseBody String getWarehouseList(HttpServletRequest request, HttpServletResponse response) {
+        LOGGER.info("------------------- 小程序调用了 获取仓库列表 API  -------------------");
+        try{
+            String today = new SimpleDateFormat("yyyyMMdd").format(new Date());//当日
+            String key = Md5.md5(today).substring(0,16);
+            String sign = request.getParameter("sign");
+
+            LOGGER.info("-------- 获取仓库列表(空格转义前) sign == " + sign);
+            sign = sign.replaceAll(" ","+");
+            LOGGER.info("-------- 获取仓库列表(空格转义后) sign == " + sign);
+
+            String token = orderMapper.getTokenByAppKey("3uWZf0mu");
+            if(sign != null && !"".equals(sign)){
+                String parmaJosnStr = EncryptUtil.decrypt(sign,key);
+                LOGGER.info("-------- 获取仓库列表解密后的Str == " + parmaJosnStr);
+                JSONObject job = JSONObject.parseObject(parmaJosnStr);
+                String Code = job.getString("Code");//仓库 code
+                return basicService.getWarehouseList(Code,token);
+            }else{
+                return "{ \"result\":\"参数不合格！\" }";
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            return "{ \"result\":\"程序异常，请咨询开发！\"}";
+        }
+    }
+
+
+    //订单查询接口
+    @RequestMapping(value="/getSaPuOrderList", method = {RequestMethod.GET,RequestMethod.POST})
+    public @ResponseBody String getSaPuOrderList(HttpServletRequest request, HttpServletResponse response) {
+        LOGGER.info("------------------- 小程序调用了 获取销售订单列表 API  -------------------");
+        try{
+            String today = new SimpleDateFormat("yyyyMMdd").format(new Date());//当日
+            String key = Md5.md5(today).substring(0,16);
+            String sign = request.getParameter("sign");
+
+            LOGGER.info("-------- 销售订单列表(空格转义前) sign == " + sign);
+            sign = sign.replaceAll(" ","+");
+            LOGGER.info("-------- 销售订单列表(空格转义后) sign == " + sign);
+
+            String token = orderMapper.getTokenByAppKey("3uWZf0mu");
+            if(sign != null && !"".equals(sign)){
+                String parmaJosnStr = EncryptUtil.decrypt(sign,key);
+                LOGGER.info("-------- 获取销售订单列表解密后的Str == " + parmaJosnStr);
+                JSONObject job = JSONObject.parseObject(parmaJosnStr);
+                String Code = job.getString("Code"); // 订单编号
+                String startDate = ""+job.getString("StartDate");//开始时间
+                String endDate = ""+job.getString("EndDate");//结束时间
+                if(Code == null || "".equals(Code)){
+                    Code = "";
+                }
+                return basicService.getSaPuOrderList(Code,startDate,endDate,token);
+            }else{
+                return "{ \"result\":\"参数不合格！\" }";
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            return "{ \"result\":\"程序异常，请咨询开发！\"}";
+        }
+    }
+
+
+    //账号获取 列表 API
+    @RequestMapping(value="/getBankNameList", method = {RequestMethod.GET,RequestMethod.POST})
+    public @ResponseBody String getBankNameList(HttpServletRequest request, HttpServletResponse response) {
+        LOGGER.info("------------------- 小程序调用了 账号获取 列表 API  -------------------");
+        try{
+            String today = new SimpleDateFormat("yyyyMMdd").format(new Date());//当日
+            String key = Md5.md5(today).substring(0,16);
+            String sign = request.getParameter("sign");
+
+            LOGGER.info("-------- 账号获取列表(空格转义前) sign == " + sign);
+            sign = sign.replaceAll(" ","+");
+            LOGGER.info("-------- 账号获取列表(空格转义后) sign == " + sign);
+
+            String token = orderMapper.getTokenByAppKey("3uWZf0mu");
+            if(sign != null && !"".equals(sign)){
+                String parmaJosnStr = EncryptUtil.decrypt(sign,key);
+                LOGGER.info("-------- 获取账号获取列表解密后的Str == " + parmaJosnStr);
+                return basicService.getBankNameList(token);
+            }else{
+                return "{ \"result\":\"参数不合格！\" }";
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            return "{ \"result\":\"程序异常，请咨询开发！\"}";
+        }
+    }
+
+
+    //T+ 的 进货单 创建接口
+    @RequestMapping(value="/createPurchaseArrival", method = {RequestMethod.GET,RequestMethod.POST})
+    public @ResponseBody String createPurchaseArrival(HttpServletRequest request, HttpServletResponse response) {
+        LOGGER.info("------------------- 小程序调用了T+的 进货单 创建接口 API -------------------");
+        try{
+            String today = new SimpleDateFormat("yyyyMMdd").format(new Date());//当日
+            String key = Md5.md5(today).substring(0,16);
+            String sign = request.getParameter("sign");
+
+            LOGGER.info("-------- 获取进货单列表(空格转义前) sign == " + sign);
+            sign = sign.replaceAll(" ","+");
+            LOGGER.info("-------- 获取进货单列表(空格转义后) sign == " + sign);
+
+            String token = orderMapper.getTokenByAppKey("3uWZf0mu");
+            if(sign != null && !"".equals(sign)){
+                String parmaJosnStr = EncryptUtil.decrypt(sign,key);
+                LOGGER.info("-------- 小程序进货单创建接口解密后的Str == " + parmaJosnStr );
+                JSONObject job = JSONObject.parseObject(parmaJosnStr);
+                XcxPuParam xcxPuParam =  job.toJavaObject(XcxPuParam.class);//进货单的订阅信息DTO
+                return basicService.createPurchaseArrival(xcxPuParam,token);
+            }else{
+                return "{ \"result\":\"参数不合格！\" }";
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            return "{ \"result\":\"程序异常，请咨询开发！\"}";
+        }
+    }
 }

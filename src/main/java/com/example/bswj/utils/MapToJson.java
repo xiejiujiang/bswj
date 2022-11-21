@@ -1,24 +1,21 @@
 package com.example.bswj.utils;
 
 import com.alibaba.fastjson.JSONObject;
+import com.example.bswj.entity.xcx.SaleOrderDetails;
+import com.example.bswj.entity.xcx.XcxSaParam;
+import com.example.bswj.entity.xcxpu.VoucherDetails;
+import com.example.bswj.entity.xcxpu.XcxPuParam;
+import com.example.bswj.mapper.orderMapper;
 import com.example.bswj.saentity.SaleDeliveryDetails;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.net.URLDecoder;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
+@Component
 public class MapToJson {
-
-    public static void main(String[] args){
-        JSONObject job = JSONObject.parseObject("");
-        String lnkshpno = job.getString("lnkshpno");//真实送货单号
-        String hndno = job.getString("hndno");//手工单号
-        String why = job.getString("brief");//红旗传过来的 弃审 的 原因啊！
-        System.out.println(lnkshpno);
-        System.out.println(hndno);
-        System.out.println(why);
-    }
 
     public static String getXMStrByMap(Map<String,String> param){
         Map<String,Object> dto = new HashMap<String,Object>();
@@ -34,99 +31,100 @@ public class MapToJson {
     }
 
 
-    // 这是一个模板，创建销货单的 请求参数 body 的 模板，其他API 可以参考
-    public static String getSAparamsJson(){
+    // 这是一个模板，创建销货单的 请求参数 body 的 模板，其他API 可以参考  红单！
+    public static String getSAparamsJson(XcxSaParam xcxSaParam,Map<String,Object> userMap){
         Map<String,Object> dto = new HashMap<String,Object>();
         Map<String,Object> sa = new HashMap<String,Object>();
-        Map<String,Object> Department = new HashMap<String,Object>();
-        Department.put("Code","HY");//部门编码
-        sa.put("Department",Department);
-        Map<String,Object> Clerk = new HashMap<String,Object>();
-        Clerk.put("Code","CD-030");//业务员编码
-        sa.put("Clerk",Clerk);
-        sa.put("VoucherDate","2022-03-15");//单据日期
+
+        sa.put("Code",xcxSaParam.getCode());
+        if(userMap == null || userMap.get("departmentCode") == null){
+            Map<String,Object> Department = new HashMap<String,Object>();
+            Department.put("Code","412");//部门编码
+            sa.put("Department",Department);
+
+            Map<String,Object> Clerk = new HashMap<String,Object>();
+            Clerk.put("Code","41203");//业务员编码
+            sa.put("Clerk",Clerk);
+        }else{
+            Map<String,Object> Department = new HashMap<String,Object>();
+            Department.put("Code",userMap.get("departmentCode").toString());//部门编码
+            sa.put("Department",Department);
+
+            Map<String,Object> Clerk = new HashMap<String,Object>();
+            Clerk.put("Code",userMap.get("personCode").toString());//业务员编码
+            sa.put("Clerk",Clerk);
+        }
+
+        String VoucherDate = xcxSaParam.getVoucherDate();// 如果没传，默认就是今天
+        if(VoucherDate == null || "".equals(VoucherDate)){
+            //单据日期  如果 小程序 不传，就可以 使用 当前日期
+            sa.put("VoucherDate",new SimpleDateFormat("yyyyMMdd").format(new Date()));
+        }else{
+            sa.put("VoucherDate",VoucherDate);//单据日期  如果 小程序 不传，就可以 使用 当前日期
+        }
         sa.put("ExternalCode",Md5.md5("XJJ"+System.currentTimeMillis()));//外部订单号，不可以重复（MD5，建议记录）
+        sa.put("Address",xcxSaParam.getAddress());//送货地址
+        sa.put("LinkMan",xcxSaParam.getContacter());//联系人
+        sa.put("ContactPhone",xcxSaParam.getContactMobile() );//联系电话
+
+
         Map<String,Object> Customer = new HashMap<String,Object>();
-        Customer.put("Code","CD-030");//客户编码
+        Customer.put("Code",xcxSaParam.getCustomerCode());//客户编码
         sa.put("Customer",Customer);
         Map<String,Object> SettleCustomer = new HashMap<String,Object>();
-        SettleCustomer.put("Code","CD-030");//结算客户编码（一般等同于 客户编码）
+        SettleCustomer.put("Code",xcxSaParam.getCustomerCode());//结算客户编码（一般等同于 客户编码）
         sa.put("SettleCustomer",SettleCustomer);
+
         Map<String,Object> BusinessType = new HashMap<String,Object>();
-        BusinessType.put("Code","15");//业务类型编码，15–普通销售；16–销售退货
+        BusinessType.put("Code","16");//业务类型编码，15–普通销售；16–销售退货
         sa.put("BusinessType",BusinessType);
         Map<String,Object> InvoiceType = new HashMap<String,Object>();
         InvoiceType.put("Code","01");//票据类型，枚举类型；00--普通发票，01--专用发票，02–收据；为空时，默认按收据处理
         sa.put("InvoiceType",InvoiceType);
+
         Map<String,Object> Warehouse = new HashMap<String,Object>();
-        Warehouse.put("Code","0101010101");//表头上的 仓库编码
+        Warehouse.put("Code",xcxSaParam.getWarehouseCode());//表头上的 仓库编码
         sa.put("Warehouse",Warehouse);
-        Map<String,Object> ReciveType = new HashMap<String,Object>();
-        ReciveType.put("Code","76");//收款方式，枚举类型；00--限期收款，01--全额订金，02--全额现结，03--月结，04--分期收款，05--其它；
-        sa.put("ReciveType",ReciveType);
-        Map<String,Object> RdStyle = new HashMap<String,Object>();
+
+        Map<String,Object> ReceiveType = new HashMap<String,Object>();
+        ReceiveType.put("Code","05");//收款方式，枚举类型；00--限期收款，01--全额订金，02--全额现结，03--月结，04--分期收款，05--其它；
+        sa.put("ReceiveType",ReceiveType);
+
+        /*Map<String,Object> RdStyle = new HashMap<String,Object>();
         RdStyle.put("Code","201");//出库类别，RdStyleDTO对象，默认为“线上销售”类别； 具体值 我是查的数据库。
-        sa.put("RdStyle",RdStyle);
-        sa.put("Memo","这是 我的 备注内容，请注意查看9！");//备注
+        sa.put("RdStyle",RdStyle);*/
+
+        sa.put("Memo","这是 自动同步的销售售后单据！");//备注
         List<Map<String,Object>> SaleDeliveryDetailsList = new ArrayList<Map<String,Object>>();
-        Map<String,Object> DetailM1 = new HashMap<String,Object>();
-        Map<String,Object> DetailM1Warehouse = new HashMap<String,Object>();
-        DetailM1Warehouse.put("code","0101010101");//明细1 的 仓库编码
-        DetailM1.put("Warehouse",DetailM1Warehouse);
-        Map<String,Object> DetailM1Inventory = new HashMap<String,Object>();
-        DetailM1Inventory.put("code","HW01-NB-13 S-EMD-W76-YSL");//明细1 的 存货编码
-        DetailM1.put("Inventory",DetailM1Inventory);
-        Map<String,Object> DetailM1Unit = new HashMap<String,Object>();
-        DetailM1Unit.put("Name","台");//明细1 的 存货计量单位
-        DetailM1.put("Unit",DetailM1Unit);
-        //DetailM1.put("Batch","？？？？？？？？？？？？？？？？？？？");//批号
-        DetailM1.put("Quantity","3");//明细1 的 数量
-        DetailM1.put("TaxRate","13");//明细1 的 税率
-        DetailM1.put("OrigTaxPrice","6666.00");//明细1 的 含税单价(实际上 在传入 来源单据之后，只会用销售订单 上的 单价？？？)
+        for(int i=0;i<xcxSaParam.getSaleOrderDetails().size();i++){
+            SaleOrderDetails sade = xcxSaParam.getSaleOrderDetails().get(i);
+            Map<String,Object> DetailM1 = new HashMap<String,Object>();
+            Map<String,Object> DetailM1Warehouse = new HashMap<String,Object>();
+            DetailM1Warehouse.put("code",xcxSaParam.getWarehouseCode());//明细1 的 仓库编码
+            DetailM1.put("Warehouse",DetailM1Warehouse);
+            Map<String,Object> DetailM1Inventory = new HashMap<String,Object>();
+            DetailM1Inventory.put("code",sade.getInventoryCode());//明细1 的 存货编码
+            DetailM1.put("Inventory",DetailM1Inventory);
+            Map<String,Object> DetailM1Unit = new HashMap<String,Object>();
+            if(sade.getUnitName() == null || "".equals(sade.getUnitName())){
+                DetailM1Unit.put("Name","件");//明细1 的 存货计量单位
+            }else{
+                DetailM1Unit.put("Name",sade.getUnitName());//明细1 的 存货计量单位
+            }
+            DetailM1.put("Unit",DetailM1Unit);
+            //DetailM1.put("Batch","？？？？？？？？？？？？？？？？？？？");//批号
+            DetailM1.put("Quantity",sade.getQuantity());//明细1 的 数量
+            DetailM1.put("TaxRate",sade.getTaxRate());//明细1 的 税率
+            DetailM1.put("OrigTaxPrice",Math.abs(sade.getOrigTaxPrice()));//明细1 的 含税单价(实际上 在传入 来源单据之后，只会用销售订单 上的 单价？？？)
 
-        /*Map<String,Object> SNObject = new HashMap<String,Object>();
-        List<Map<String,Object>> SnAccountDetails = new ArrayList<Map<String,Object>>();
-        Map<String,Object> snmap1 = new HashMap<String,Object>();
-        snmap1.put("SNCode","999006");
-        SnAccountDetails.add(snmap1);
-        Map<String,Object> snmap2 = new HashMap<String,Object>();
-        snmap2.put("SNCode","999004");
-        SnAccountDetails.add(snmap2);
-        Map<String,Object> snmap3 = new HashMap<String,Object>();
-        snmap3.put("SNCode","999001");
-        SnAccountDetails.add(snmap3);
-        SNObject.put("SnAccountDetails",SnAccountDetails);
-        DetailM1.put("SNObject",SNObject);*/
-
-        DetailM1.put("idsourcevouchertype","43");//明细1 的 来源单据类型ID
-        DetailM1.put("sourceVoucherCode","SO-2022-03-0006");//明细1 的 来源单据单据编号
-        DetailM1.put("sourceVoucherDetailId","9");//明细1 的 来源单据单据对应的明细行ID
-        SaleDeliveryDetailsList.add(DetailM1);
-
-        // 表 明细里面的 第二行
-        Map<String,Object> DetailM2 = new HashMap<String,Object>();
-        Map<String,Object> DetailM2Warehouse = new HashMap<String,Object>();
-        DetailM2Warehouse.put("code","0101010101");//明细2 的 仓库编码
-        DetailM2.put("Warehouse",DetailM2Warehouse);
-        Map<String,Object> DetailM2Inventory = new HashMap<String,Object>();
-        DetailM2Inventory.put("code","test1231");//明细2 的 存货编码
-        DetailM2.put("Inventory",DetailM2Inventory);
-        Map<String,Object> DetailM2Unit = new HashMap<String,Object>();
-        DetailM2Unit.put("Name","个");//明细2 的 存货计量单位
-        DetailM2.put("Unit",DetailM2Unit);
-        //DetailM2.put("Batch","？？？？？？？？？？？？？？？？？？？");//批号
-        DetailM2.put("Quantity","3");//明细2 的 数量
-        DetailM2.put("TaxRate","13");//明细2 的 税率
-        DetailM2.put("OrigTaxAmount","9999.00");//明细2 的 含税金额(实际上 在传入 来源单据之后，只会用销售订单 上的 金额)
-        DetailM2.put("idsourcevouchertype","43");//明细2 的 来源单据类型ID
-        DetailM2.put("sourceVoucherCode","SO-2022-03-0004");//明细2 的 来源单据单据编号
-        DetailM2.put("sourceVoucherDetailId","8");//明细2 的 来源单据单据对应的明细行ID
-        SaleDeliveryDetailsList.add(DetailM2);
-
+            DetailM1.put("idsourcevouchertype","43");//明细1 的 来源单据类型ID . 销售订单：43 , 销货单：104 ,销售出库单：19
+            DetailM1.put("sourceVoucherCode",xcxSaParam.getCode());//明细1 的 来源单据单据编号
+            DetailM1.put("sourceVoucherDetailId",sade.getSourceVoucherDetailId());//明细1 的 来源单据单据对应的明细行ID
+            SaleDeliveryDetailsList.add(DetailM1);
+        }
         sa.put("SaleDeliveryDetails",SaleDeliveryDetailsList);
         dto.put("dto",sa);
         String js = JSONObject.toJSONString(dto);
-
         return js;
     }
 
@@ -259,79 +257,161 @@ public class MapToJson {
         return js;
     }
 
-    // 通过 MAP 来创建 销售订单 STRING
-    public static String createSaPUOrderDTO(Map<String,String> param){
+    // 创建 销售订单 STRING
+    public static String createSaPUOrderDTO(XcxSaParam xcxSaParam,Map<String,Object> userMap){
         Map<String,Object> dto = new HashMap<String,Object>();
 
         Map<String,Object> sa = new HashMap<String,Object>();
-        //sa.put("Code",param.get("code"));  销售订单的编号 ，由系统自己创建
+        sa.put("Code",xcxSaParam.getCode());  //销售订单的编号 ，用的是小程序的
+
         Map<String,Object> BusinessType = new HashMap<String,Object>();
-        BusinessType.put("Code",param.get("projectclass")); // 15--普通销售  16--销售退货"
+        BusinessType.put("Code",xcxSaParam.getBusinessType()); // 15--普通销售  16--销售退货"
         sa.put("BusinessType",BusinessType);
 
-        Map<String,Object> Department = new HashMap<String,Object>();
-        Department.put("Code",param.get("departmentCode"));//部门编码
-        sa.put("Department",Department);
+        if("16".equals(xcxSaParam.getBusinessType())){
+            Map<String,Object> ReturnOrderType = new HashMap<String,Object>();
+            ReturnOrderType.put("Code","01"); // 00：仅退款    01：退货退款
+            sa.put("ReturnOrderType",ReturnOrderType);
+        }
 
-        Map<String,Object> Clerk = new HashMap<String,Object>();
-        Clerk.put("Code",param.get("personCode"));//业务员编码
-        sa.put("Clerk",Clerk);
+        if(userMap == null || userMap.get("departmentCode") == null){
+            Map<String,Object> Department = new HashMap<String,Object>();
+            Department.put("Code","412");//部门编码
+            sa.put("Department",Department);
 
-        String VoucherDate = param.get("VoucherDate").toString();
-        sa.put("VoucherDate",VoucherDate);//单据日期  如果 小程序 不传，就可以 使用 当前日期
+            Map<String,Object> Clerk = new HashMap<String,Object>();
+            Clerk.put("Code","41203");//业务员编码
+            sa.put("Clerk",Clerk);
+        }else{
+            Map<String,Object> Department = new HashMap<String,Object>();
+            Department.put("Code",userMap.get("departmentCode").toString());//部门编码
+            sa.put("Department",Department);
+
+            Map<String,Object> Clerk = new HashMap<String,Object>();
+            Clerk.put("Code",userMap.get("personCode").toString());//业务员编码
+            sa.put("Clerk",Clerk);
+        }
+
+        String VoucherDate = xcxSaParam.getVoucherDate();// 如果没传，默认就是今天
+        if(VoucherDate == null || "".equals(VoucherDate)){
+            //单据日期  如果 小程序 不传，就可以 使用 当前日期
+            sa.put("VoucherDate",new SimpleDateFormat("yyyyMMdd").format(new Date()));
+        }else{
+            sa.put("VoucherDate",VoucherDate);//单据日期  如果 小程序 不传，就可以 使用 当前日期
+        }
         sa.put("ExternalCode",Md5.md5("XJJ"+System.currentTimeMillis()));//外部订单号，不可以重复（MD5，建议记录）
+        sa.put("Address",xcxSaParam.getAddress());//送货地址
+        sa.put("LinkMan",xcxSaParam.getContacter());//联系人
+        sa.put("ContactPhone",xcxSaParam.getContactMobile() );//联系电话
 
+        // 如果客户信息没有，就需要 先创建一个客户信息 注意 往来分类 是按 地区来的。
         Map<String,Object> Customer = new HashMap<String,Object>();
-        Customer.put("Code",param.get("CustomerCode"));//客户编码  都用 零售客户
+        Customer.put("Code",xcxSaParam.getCustomerCode());//客户编码
         sa.put("Customer",Customer);
         Map<String,Object> SettleCustomer = new HashMap<String,Object>();
-        SettleCustomer.put("Code",param.get("SettleCustomerCode"));//结算客户编码（一般等同于 客户编码）
+        SettleCustomer.put("Code",xcxSaParam.getCustomerCode());//结算客户编码（一般等同于 客户编码）
         sa.put("SettleCustomer",SettleCustomer);
+
+        /*Map<String,Object> Warehouse = new HashMap<String,Object>();
+        Warehouse.put("Code",xcxSaParam.getWarehouseCode());//表头上的 仓库编码
+        sa.put("Warehouse",Warehouse);*/
 
         Map<String,Object> ReciveType = new HashMap<String,Object>();
         ReciveType.put("Code","01");//收款方式，枚举类型；00--限期收款，01--全额订金，02--全额现结，03--月结，04--分期收款，05--其它；
         sa.put("ReciveType",ReciveType);// 有可能不是 全额定金哈 ！
+
 //-----------------------------------------------------------------------------------------------------//
         // 定金对应的 具体的 结算方式
         List<Map<String,Object>> SaleDeliverySettlements = new ArrayList<Map<String,Object>>();
-        /*for(Map<String,Object>  map : settleList){//此单的 结算方式 明细
+        for(int i=0;i<xcxSaParam.getSubscriptions().size();i++){//此单的 结算方式 明细
             Map<String,Object> settleMap = new HashMap<String,Object>();
-            settleMap.put("origAmount",map.get("amount").toString()); //金额
-            Map<String,Object> SettleStyle = new HashMap<String,Object>();
+            if("16".equals(xcxSaParam.getBusinessType())){
+                settleMap.put("origAmount",-1*xcxSaParam.getSubscriptions().get(i).getOrigAmount() ); //金额
+            }else{
+                settleMap.put("origAmount",xcxSaParam.getSubscriptions().get(i).getOrigAmount() ); //金额
+            }
+
             Map<String,Object> BankAccount = new HashMap<String,Object>();
-            SettleStyle.put("Code","9996");//结算方式编码
-            BankAccount.put("Name","代金券");//账号名称
-            settleMap.put("SettleStyle",SettleStyle);
-            settleMap.put("BankAccount",BankAccount);
+            String BankAccountName = xcxSaParam.getSubscriptions().get(i).getBankAccount();//账号名称
+            if("1627902008".equals(BankAccountName) || "1625792544".equals("BankAccountName")){
+                BankAccount.put("Name","小程序线上账户"); //微信支付下有两个 账号：1627902008、1625792544
+                settleMap.put("BankAccount",BankAccount);
+                //查询次账号在T+中对应的默认结算方式。
+                Map<String,Object> SettleStyle = new HashMap<String,Object>();
+                String settlyStr = xcxSaParam.getSubscriptions().get(i).getSettleStyle();//小程序传入的 支付方式
+                if(settlyStr.contains("微信")){
+                    SettleStyle.put("Code","998");
+                }
+                if(settlyStr.contains("支付宝")){
+                    SettleStyle.put("Code","999");
+                }
+                if(!settlyStr.contains("微信") && !settlyStr.contains("支付宝")){
+                    SettleStyle.put("Code","997");// 写死： 转账
+                }
+                settleMap.put("SettleStyle",SettleStyle);
+            }else{
+                BankAccount.put("Name","小程序线下账户");
+                settleMap.put("BankAccount",BankAccount);
+                //查询次账号在T+中对应的默认结算方式。
+                Map<String,Object> SettleStyle = new HashMap<String,Object>();
+                SettleStyle.put("Code","997");// 写死： 转账
+                settleMap.put("SettleStyle",SettleStyle);
+            }
             SaleDeliverySettlements.add(settleMap);
-        }*/
+        }
         sa.put("Subscriptions",SaleDeliverySettlements);
 // -------------------------------------------------------------------------------------------- //
         List<Map<String,Object>> SaleDeliveryDetailsList = new ArrayList<Map<String,Object>>();
         Float totaltaxamount = 0f;
-        /*for(Map<String,Object> retailmap : dataList){
-            String taxamount = retailmap.get("taxamount").toString();
-            totaltaxamount = totaltaxamount + Float.valueOf(taxamount);
+
+        Float xishu = 1.0f;
+        if("16".equals(xcxSaParam.getBusinessType())){
+            xishu = -1.0f;
+        }
+        for(int i=0;i<xcxSaParam.getSaleOrderDetails().size();i++ ){
+            Float Quantity = xcxSaParam.getSaleOrderDetails().get(i).getQuantity();
+            Float taxamount = xishu*Quantity*Float.valueOf(xcxSaParam.getSaleOrderDetails().get(i).getOrigTaxPrice());
+            totaltaxamount = totaltaxamount + taxamount;
+
             Map<String,Object> DetailM = new HashMap<String,Object>();
             Map<String,Object> DetailMInventory = new HashMap<String,Object>();
-            DetailMInventory.put("code",retailmap.get("inventoryCode").toString());//明细1 的 存货编码
+            String inventoryCode = xcxSaParam.getSaleOrderDetails().get(i).getInventoryCode();
+            DetailMInventory.put("code",inventoryCode);//明细1 的 存货编码
             DetailM.put("Inventory",DetailMInventory);
             Map<String,Object> DetailMUnit = new HashMap<String,Object>();
-            DetailMUnit.put("Name",retailmap.get("unitName").toString());// 使用 对应 原始销货单上这个商品的计量单位
+            if(xcxSaParam.getSaleOrderDetails().get(i).getUnitName()==null||"".equals(xcxSaParam.getSaleOrderDetails().get(i).getUnitName())){
+                DetailMUnit.put("Name","件");// 使用 对应 原始销货单上这个商品的计量单位
+            }else{
+                DetailMUnit.put("Name",xcxSaParam.getSaleOrderDetails().get(i).getUnitName());// 使用 对应 原始销货单上这个商品的计量单位
+            }
             DetailM.put("Unit",DetailMUnit);
-            //DetailM.put("Batch","？？？？？？？？？？？？？？？？？？？");//批号
-            DetailM.put("Quantity", retailmap.get("quantity").toString());//返回的差异数量  送货 - 实收 = 差异
-            DetailM.put("TaxRate",???);//明细1 的 税率 , 从 商品里面 获取的，不一定全是 13
-            DetailM.put("OrigTaxPrice",retailmap.get("taxprice").toString());//明细1 的 含税单价
-            DetailM.put("idsourcevouchertype","43");//明细1 的 来源单据类型ID
+            DetailM.put("Quantity", Quantity*xishu);
+
+            if(inventoryCode.equals("0502") || inventoryCode.equals("0503") || inventoryCode.equals("0504")){
+                //0502 优惠券    0503 红包     0504 订单优惠
+                DetailM.put("Quantity", -1*xishu);
+            }
+
+            DetailM.put("TaxRate", xcxSaParam.getSaleOrderDetails().get(i).getTaxRate());//明细1 的 税率 , 从 商品里面 获取的，不一定全是 13
+            DetailM.put("OrigTaxPrice",Math.abs(xcxSaParam.getSaleOrderDetails().get(i).getOrigTaxPrice()));//明细1 的 含税单价
+
+            if("1".equals(xcxSaParam.getSaleOrderDetails().get(i).getIsPresent())){
+                DetailM.put("IsPresent",true);
+            }else{
+                DetailM.put("IsPresent",false);
+            }
+            DetailM.put("DetailMemo",xcxSaParam.getSaleOrderDetails().get(i).getMemo());//商品备注
+
+            //DetailM.put("idsourcevouchertype","43");//明细1 的 来源单据类型ID
             //如果要跟 销售订单 关联，则需要传入 下面两个参数。
             //DetailM.put("sourceVoucherCode","SO-2022-03-0006");//明细1 的 来源单据单据编号
             //DetailM.put("sourceVoucherDetailId","9");//明细1 的 来源单据单据对应的明细行ID
             SaleDeliveryDetailsList.add(DetailM);
-        }*/
+        }
         // 如果是 全额 定金 就必须要传 OrigEarnestMoney  ---------------------------------------------------- //
         sa.put("OrigEarnestMoney",totaltaxamount);// 有可能不是 全额定金哈 ！
         sa.put("SaleOrderDetails",SaleDeliveryDetailsList);
+        sa.put("Memo",xcxSaParam.getCustomerMemo()+"此单是自动同步的");//整单备注。
         dto.put("dto",sa);
         String json = JSONObject.toJSONString(dto);
         return json;
@@ -615,12 +695,101 @@ public class MapToJson {
         Map<String,Object> InvUnitPriceDTOs = new HashMap<String,Object>();
         InvUnitPriceDTOs.put("rateOfExchange",param.get("rateOfExchange"));// 浮动换算率
         Map<String,Object> rateOfExchangeUnit = new HashMap<String,Object>();
-        rateOfExchangeUnit.put("Name","?????"); //计量单位名称
+        rateOfExchangeUnit.put("Name","件"); //计量单位名称
         InvUnitPriceDTOs.put("Unit",rateOfExchangeUnit); // 浮动换算率
         sa.put("InvUnitPriceDTOs",InvUnitPriceDTOs);
 
         dto.put("dto",sa);
         String json = JSONObject.toJSONString(dto);
         return json;
+    }
+
+    public static  String createPUOrderDTO(XcxPuParam xcxPuParam,Map<String,Object> userMap){
+        Map<String,Object> dto = new HashMap<String,Object>();
+        Map<String,Object> sa = new HashMap<String,Object>();
+
+        Map<String,Object> Department = new HashMap<String,Object>();
+        Department.put("Code",userMap.get("departmentCode").toString());//部门编码
+        sa.put("Department",Department);
+
+        Map<String,Object> Clerk = new HashMap<String,Object>();
+        Clerk.put("Code",userMap.get("personCode").toString());//业务员编码
+        sa.put("Clerk",Clerk);
+
+        String VoucherDate = xcxPuParam.getDto().getVoucherDate().toString();
+        sa.put("VoucherDate",VoucherDate);//单据日期
+        sa.put("ExternalCode",Md5.md5("XJJ"+System.currentTimeMillis()));//外部订单号，不可以重复（MD5，建议记录）
+
+        Map<String,Object> Customer = new HashMap<String,Object>();
+        Customer.put("Code",xcxPuParam.getDto().getPartnerCode());//客户编码
+        sa.put("Customer",Customer);
+        Map<String,Object> SettleCustomer = new HashMap<String,Object>();
+        SettleCustomer.put("Code",xcxPuParam.getDto().getPartnerCode());//结算客户编码（一般等同于 客户编码）
+        sa.put("SettleCustomer",SettleCustomer);
+
+        Map<String,Object> InvoiceType = new HashMap<String,Object>();
+        InvoiceType.put("Code","01");//票据类型，枚举类型；00--普通发票，01--专用发票，02–收据；为空时，默认按收据处理
+        sa.put("InvoiceType",InvoiceType);
+        Map<String,Object> Warehouse = new HashMap<String,Object>();
+        Warehouse.put("Code", xcxPuParam.getDto().getWarehouseCode());//表头上的 仓库编码
+        sa.put("Warehouse",Warehouse);
+        Map<String,Object> ReciveType = new HashMap<String,Object>();
+        ReciveType.put("Code","05");//收款方式，枚举类型；00--限期收款，01--全额订金，02--全额现结，03--月结，04--分期收款，05--其它；
+        sa.put("ReciveType",ReciveType);// A账都是现结
+        Map<String,Object> RdStyle = new HashMap<String,Object>();
+        RdStyle.put("Code","201");//出库类别，RdStyleDTO对象，默认为“线上销售”类别； 具体值 我是查的数据库。  201
+        sa.put("RdStyle",RdStyle);
+        Map<String,Object> BusinessType = new HashMap<String,Object>();
+        BusinessType.put("Code",xcxPuParam.getDto().getBusinessType());//业务类型编码，15–普通销售；16–销售退货
+        sa.put("BusinessType",BusinessType);
+        //sa.put("Memo","这一单是根据红旗返回的差异自动生成的，请注意区别 ！");//备注
+        List<Map<String,Object>> SaleDeliveryDetailsList = new ArrayList<Map<String,Object>>();
+        for(VoucherDetails retailmap :xcxPuParam.getDto().getVoucherDetails()){
+            Map<String,Object> DetailM = new HashMap<String,Object>();
+            Map<String,Object> DetailMWarehouse = new HashMap<String,Object>();
+            //明细1 的 仓库编码,这里不好取，但是可以用表头的（因为每一个销货单 只 对应了一个 仓库）
+            DetailMWarehouse.put("code",Warehouse.get("Code"));
+            DetailM.put("Warehouse",DetailMWarehouse);
+            Map<String,Object> DetailMInventory = new HashMap<String,Object>();
+            DetailMInventory.put("code",retailmap.getInventoryCode());//明细1 的 存货编码
+            DetailM.put("Inventory",DetailMInventory);
+            Map<String,Object> DetailMUnit = new HashMap<String,Object>();
+            DetailMUnit.put("Name",retailmap.getUnitName());// 使用 对应 原始销货单上这个商品的计量单位
+            DetailM.put("Unit",DetailMUnit);
+            //DetailM.put("Batch","1");//批号
+            DetailM.put("Quantity", retailmap.getQuantity());//返回的差异数量  送货 - 实收 = 差异
+            DetailM.put("TaxRate","13");//明细1 的 税率
+            DetailM.put("OrigTaxAmount",retailmap.getOrigTaxAmount());//明细1 的 含税单价
+            SaleDeliveryDetailsList.add(DetailM);
+        }
+        sa.put("SaleDeliveryDetails",SaleDeliveryDetailsList);
+        dto.put("dto",sa);
+        String js = JSONObject.toJSONString(dto);
+        System.out.println("进货单JSON ====== " + js);
+        return js;
+    }
+
+    public static String getPatnerJsonByEntity(XcxSaParam xcxSaParam,Map<String,Object> userMap,String PartnerClassCode){
+        String code = xcxSaParam.getContactMobile();
+        String name = xcxSaParam.getContacter()+code;
+        String departmentCode = userMap.get("departmentCode").toString();
+        String personCode = userMap.get("personCode").toString();
+        String json = "{\n" +
+                "        \"dto\": {\n" +
+                "                \"Code\":\""+code+"\"," +
+                "                \"Name\":\""+name+"\",\n" +
+                "                \"PartnerType\":{\"Code\":\"01\"},\n" +
+                "                \"PartnerClass\":{\"Code\":\""+PartnerClassCode+"\"},\n" +
+                "                \"SaleDepartment\":{\"Code\":\""+departmentCode+"\" },\n" +
+                "                \"SaleMan\":{\"Code\":\""+personCode+"\"},\n" +
+                "                \"SaleSettleStyle\":{\"Code\":\"05\"}\n" +
+                "            }\n" +
+                "        }";
+        return json;
+    }
+
+    public static void main(String[] args) {
+        String customerResult = "\u5fae\u4fe1\u652f\u4ed8";
+        System.out.println(URLDecoder.decode(customerResult));
     }
 }

@@ -54,4 +54,63 @@
         and voucherState = 189 and voucherdate > '2022-07-24' and (priuserdefnvc6 is null or priuserdefnvc6 = '')
         and (idproject not  in (1,2,8) or  idproject is null) and (memo not like '%差异自动生成%' or memo is null)
     </select>
+
+    <select id="getUserInfoByMobile" resultType="java.util.Map" parameterType="java.lang.String">
+        select TOP 1
+               t2.code as departmentCode,t1.code as personCode
+        from AA_person t1,AA_department t2
+        where t1.iddepartment = t2.id and t1.mobilePhoneNo = #{mobile}
+    </select>
+
+    <select id="getBankNameList" resultType="java.util.Map">
+        select code,name,bankNo,bankName
+        from AA_BankAccount
+    </select>
+
+    <select id="getSaPuOrderList" resultType="java.util.Map" parameterType="java.lang.String">
+        select t1.code,CONVERT(varchar(100), t1.voucherdate, 23) as voucherdate,
+               t2.name as warehouseName,t3.name as partnerName,t1.taxAmount
+        from SA_SaleOrder t1,AA_Warehouse t2,AA_Partner t3
+        where t1.idwarehouse = t2.id and t1.idcustomer = t3.id
+        <if test="startDate !='' ">
+            and t1.voucherdate >= #{startDate}
+        </if>
+        <if test="endDate !='' ">
+            and t1.voucherdate <![CDATA[ <= ]]> #{endDate}
+        </if>
+        <if test="Code !='' ">
+            and t1.code = #{Code}
+        </if>
+    </select>
+
+    <select id="getInvetoryTaxRateByCode" resultType="java.lang.String" parameterType="java.lang.String">
+        select top 1 ISNULL(t2.name,9) AS taxRate
+        from AA_inventory t1,eap_EnumItem t2
+        where t1.code = #{inventoryCode} and t1.taxRate = t2.id
+    </select>
+
+    <select id="getCustomerCount" resultType="java.lang.Integer" parameterType="java.lang.String">
+        select count(1) from AA_partner where code = #{code}
+    </select>
+
+    <select id="getPartnerClassCodeBySHI" resultType="java.lang.String" parameterType="java.lang.String">
+        select top 1 code from AA_PartnerClass where name like '%'+#{shi}+'%' and isEndNode = 1
+    </select>
+
+    <select id="getSapuOrderAfterList" resultType="java.lang.Integer" parameterType="java.lang.String">
+        select count(id) from SA_SaleDelivery where SourceVoucherCode = #{Code}
+    </select>
+
+    <select id="getSourceVoucherDetailIdBy" resultType="java.lang.Integer" parameterType="java.lang.String">
+        select top 1  t1.id
+        from  SA_SaleDelivery_b t1,AA_inventory t2,SA_SaleDelivery t3
+        where t1.idinventory = t2.id and t2.code = #{inventoryCode} and t1.idSaleDeliveryDTO = t3.id
+        and t3.code = #{code}
+    </select>
+
+    <select id="getDQCODEBY" resultType="java.lang.String" parameterType="java.lang.String">
+        select top 1
+        ISNULL(code,#{Code}) as code
+        from SA_SaleDelivery where code LIKE '%'+#{Code}+'%' order by id desc
+    </select>
 </mapper>

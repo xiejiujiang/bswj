@@ -7,12 +7,16 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.SecureRandom;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class AESUtil {
 
     public static void main(String[] args) {
-        String str = "大佛可还u激烈交锋稍等方式90sfu8dsfrv9hvuzdilvr9eihvuislz排毒减肥）（*&……%￥#%……&*&……%￥#X@!#$%&*)(~";
-        String key = Md5.md5("20221011");
+        String str = "{\"Code\": \"\"}";
+        String today = new SimpleDateFormat("yyyyMMdd").format(new Date());//当日
+        String key = Md5.md5(today);
+        //String key = Md5.md5("20221104");//new SimpleDateFormat("yyyyMMdd").format(new Date());//当日
         System.out.println("加密前：" +  str);
         try {
             String encryptResult = AESUtil.encrypt(str, key);

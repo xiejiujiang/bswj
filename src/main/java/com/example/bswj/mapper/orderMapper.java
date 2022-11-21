@@ -44,4 +44,23 @@ public interface orderMapper {
 
     //增加了 专门处理中德的红旗单据 消息订阅 未收到的问题
     List<Map<String,String>> getUnuploadList();
+
+    // 通过 业务员手机号， 查询这个业务员相关的 部门。员工信息
+    Map<String,Object> getUserInfoByMobile(@Param("mobile")String mobile);
+
+    List<Map<String,Object>> getBankNameList();
+
+    List<Map<String,Object>> getSaPuOrderList(@Param("Code")String Code,@Param("startDate")String startDate,@Param("endDate")String endDate);
+
+    String getInvetoryTaxRateByCode(@Param("inventoryCode")String inventoryCode);//从存货档案种 获取对应的税率
+
+    Integer getCustomerCount(@Param("code")String code);
+
+    String getPartnerClassCodeBySHI(@Param("shi")String shi);
+
+    Integer getSapuOrderAfterList(@Param("Code")String Code);
+
+    String getSourceVoucherDetailIdBy(@Param("inventoryCode")String inventoryCode,@Param("code")String code);
+
+    String getDQCODEBY(@Param("Code")String Code);//查询销货单里面有没有当前这个code的编号
 }
