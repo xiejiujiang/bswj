@@ -69,9 +69,9 @@
 
     <select id="getSaPuOrderList" resultType="java.util.Map" parameterType="java.lang.String">
         select t1.code,CONVERT(varchar(100), t1.voucherdate, 23) as voucherdate,
-               t2.name as warehouseName,t3.name as partnerName,t1.taxAmount
-        from SA_SaleOrder t1,AA_Warehouse t2,AA_Partner t3
-        where t1.idwarehouse = t2.id and t1.idcustomer = t3.id
+               t3.name as partnerName,t1.taxAmount
+        from SA_SaleOrder t1,AA_Partner t3
+        where t1.idcustomer = t3.id
         <if test="startDate !='' ">
             and t1.voucherdate >= #{startDate}
         </if>
@@ -83,10 +83,11 @@
         </if>
     </select>
 
-    <select id="getInvetoryTaxRateByCode" resultType="java.lang.String" parameterType="java.lang.String">
-        select top 1 ISNULL(t2.name,9) AS taxRate
-        from AA_inventory t1,eap_EnumItem t2
-        where t1.code = #{inventoryCode} and t1.taxRate = t2.id
+    <select id="getInvetoryTaxRateByCode" resultType="java.util.Map" parameterType="java.lang.String">
+        select top 1
+        ISNULL(t2.name,9) AS taxRate,t3.name as unitname
+        from AA_inventory t1,eap_EnumItem t2,AA_Unit t3
+        where t1.code = #{inventoryCode} and t1.taxRate = t2.id and t1.idUnitBySale = t3.id
     </select>
 
     <select id="getCustomerCount" resultType="java.lang.Integer" parameterType="java.lang.String">

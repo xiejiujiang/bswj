@@ -52,7 +52,7 @@ public interface orderMapper {
 
     List<Map<String,Object>> getSaPuOrderList(@Param("Code")String Code,@Param("startDate")String startDate,@Param("endDate")String endDate);
 
-    String getInvetoryTaxRateByCode(@Param("inventoryCode")String inventoryCode);//从存货档案种 获取对应的税率
+    Map<String,Object> getInvetoryTaxRateByCode(@Param("inventoryCode")String inventoryCode);//从存货档案种 获取对应的税率
 
     Integer getCustomerCount(@Param("code")String code);
 

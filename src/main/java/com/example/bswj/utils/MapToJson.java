@@ -316,53 +316,62 @@ public class MapToJson {
         Warehouse.put("Code",xcxSaParam.getWarehouseCode());//表头上的 仓库编码
         sa.put("Warehouse",Warehouse);*/
 
-        Map<String,Object> ReciveType = new HashMap<String,Object>();
-        ReciveType.put("Code","01");//收款方式，枚举类型；00--限期收款，01--全额订金，02--全额现结，03--月结，04--分期收款，05--其它；
-        sa.put("ReciveType",ReciveType);// 有可能不是 全额定金哈 ！
-
 //-----------------------------------------------------------------------------------------------------//
-        // 定金对应的 具体的 结算方式
-        List<Map<String,Object>> SaleDeliverySettlements = new ArrayList<Map<String,Object>>();
-        for(int i=0;i<xcxSaParam.getSubscriptions().size();i++){//此单的 结算方式 明细
-            Map<String,Object> settleMap = new HashMap<String,Object>();
-            if("16".equals(xcxSaParam.getBusinessType())){
-                settleMap.put("origAmount",-1*xcxSaParam.getSubscriptions().get(i).getOrigAmount() ); //金额
-            }else{
-                settleMap.put("origAmount",xcxSaParam.getSubscriptions().get(i).getOrigAmount() ); //金额
-            }
+        // 定金对应的 具体的 结算方式。 由于 子母单的存在，子单上没有金额，没有金额就不传 结算方式。且订单是其他
+        Float totaltaxamount = 0f;
+        Float OrigAmountFlag = xcxSaParam.getSubscriptions().get(0).getOrigAmount();
+        if(OrigAmountFlag == null || 0.0f == OrigAmountFlag){
+            Map<String,Object> ReciveType = new HashMap<String,Object>();
+            ReciveType.put("Code","05");//收款方式，枚举类型；00--限期收款，01--全额订金，02--全额现结，03--月结，04--分期收款，05--其它；
+            sa.put("ReciveType",ReciveType);// 有可能不是 全额定金哈 ！
+        }else{
+            Map<String,Object> ReciveType = new HashMap<String,Object>();
+            ReciveType.put("Code","01");//收款方式，枚举类型；00--限期收款，01--全额订金，02--全额现结，03--月结，04--分期收款，05--其它；
+            sa.put("ReciveType",ReciveType);// 有可能不是 全额定金哈 ！
 
-            Map<String,Object> BankAccount = new HashMap<String,Object>();
-            String BankAccountName = xcxSaParam.getSubscriptions().get(i).getBankAccount();//账号名称
-            if("1627902008".equals(BankAccountName) || "1625792544".equals("BankAccountName")){
-                BankAccount.put("Name","小程序线上账户"); //微信支付下有两个 账号：1627902008、1625792544
-                settleMap.put("BankAccount",BankAccount);
-                //查询次账号在T+中对应的默认结算方式。
-                Map<String,Object> SettleStyle = new HashMap<String,Object>();
-                String settlyStr = xcxSaParam.getSubscriptions().get(i).getSettleStyle();//小程序传入的 支付方式
-                if(settlyStr.contains("微信")){
-                    SettleStyle.put("Code","998");
+            List<Map<String,Object>> SaleDeliverySettlements = new ArrayList<Map<String,Object>>();
+            for(int i=0;i<xcxSaParam.getSubscriptions().size();i++){//此单的 结算方式 明细
+                Map<String,Object> settleMap = new HashMap<String,Object>();
+                if("16".equals(xcxSaParam.getBusinessType())){
+                    settleMap.put("origAmount",-1*xcxSaParam.getSubscriptions().get(i).getOrigAmount() ); //金额
+                    totaltaxamount = totaltaxamount + -1*xcxSaParam.getSubscriptions().get(i).getOrigAmount();
+                }else{
+                    settleMap.put("origAmount",xcxSaParam.getSubscriptions().get(i).getOrigAmount() ); //金额
+                    totaltaxamount = totaltaxamount + xcxSaParam.getSubscriptions().get(i).getOrigAmount();
                 }
-                if(settlyStr.contains("支付宝")){
-                    SettleStyle.put("Code","999");
-                }
-                if(!settlyStr.contains("微信") && !settlyStr.contains("支付宝")){
+
+                Map<String,Object> BankAccount = new HashMap<String,Object>();
+                String BankAccountName = xcxSaParam.getSubscriptions().get(i).getBankAccount();//账号名称
+                if("1627902008".equals(BankAccountName) || "1625792544".equals("BankAccountName")){
+                    BankAccount.put("Name","小程序线上账户"); //微信支付下有两个 账号：1627902008、1625792544
+                    settleMap.put("BankAccount",BankAccount);
+                    //查询次账号在T+中对应的默认结算方式。
+                    Map<String,Object> SettleStyle = new HashMap<String,Object>();
+                    String settlyStr = xcxSaParam.getSubscriptions().get(i).getSettleStyle();//小程序传入的 支付方式
+                    if(settlyStr.contains("微信")){
+                        SettleStyle.put("Code","998");
+                    }
+                    if(settlyStr.contains("支付宝")){
+                        SettleStyle.put("Code","999");
+                    }
+                    if(!settlyStr.contains("微信") && !settlyStr.contains("支付宝")){
+                        SettleStyle.put("Code","997");// 写死： 转账
+                    }
+                    settleMap.put("SettleStyle",SettleStyle);
+                }else{
+                    BankAccount.put("Name","小程序线下账户");
+                    settleMap.put("BankAccount",BankAccount);
+                    //查询次账号在T+中对应的默认结算方式。
+                    Map<String,Object> SettleStyle = new HashMap<String,Object>();
                     SettleStyle.put("Code","997");// 写死： 转账
+                    settleMap.put("SettleStyle",SettleStyle);
                 }
-                settleMap.put("SettleStyle",SettleStyle);
-            }else{
-                BankAccount.put("Name","小程序线下账户");
-                settleMap.put("BankAccount",BankAccount);
-                //查询次账号在T+中对应的默认结算方式。
-                Map<String,Object> SettleStyle = new HashMap<String,Object>();
-                SettleStyle.put("Code","997");// 写死： 转账
-                settleMap.put("SettleStyle",SettleStyle);
+                SaleDeliverySettlements.add(settleMap);
             }
-            SaleDeliverySettlements.add(settleMap);
+            sa.put("Subscriptions",SaleDeliverySettlements);
         }
-        sa.put("Subscriptions",SaleDeliverySettlements);
 // -------------------------------------------------------------------------------------------- //
         List<Map<String,Object>> SaleDeliveryDetailsList = new ArrayList<Map<String,Object>>();
-        Float totaltaxamount = 0f;
 
         Float xishu = 1.0f;
         if("16".equals(xcxSaParam.getBusinessType())){
@@ -371,7 +380,7 @@ public class MapToJson {
         for(int i=0;i<xcxSaParam.getSaleOrderDetails().size();i++ ){
             Float Quantity = xcxSaParam.getSaleOrderDetails().get(i).getQuantity();
             Float taxamount = xishu*Quantity*Float.valueOf(xcxSaParam.getSaleOrderDetails().get(i).getOrigTaxPrice());
-            totaltaxamount = totaltaxamount + taxamount;
+            //totaltaxamount = totaltaxamount + taxamount;
 
             Map<String,Object> DetailM = new HashMap<String,Object>();
             Map<String,Object> DetailMInventory = new HashMap<String,Object>();
@@ -379,10 +388,16 @@ public class MapToJson {
             DetailMInventory.put("code",inventoryCode);//明细1 的 存货编码
             DetailM.put("Inventory",DetailMInventory);
             Map<String,Object> DetailMUnit = new HashMap<String,Object>();
-            if(xcxSaParam.getSaleOrderDetails().get(i).getUnitName()==null||"".equals(xcxSaParam.getSaleOrderDetails().get(i).getUnitName())){
+            if(xcxSaParam.getSaleOrderDetails().get(i).getUnitName()==null || "".equals(xcxSaParam.getSaleOrderDetails().get(i).getUnitName())){
                 DetailMUnit.put("Name","件");// 使用 对应 原始销货单上这个商品的计量单位
-            }else{
-                DetailMUnit.put("Name",xcxSaParam.getSaleOrderDetails().get(i).getUnitName());// 使用 对应 原始销货单上这个商品的计量单位
+            }else{//如果传入的单位和系统的单位一致，就用传入的，否则就用系统的
+                String chuanruunit = xcxSaParam.getSaleOrderDetails().get(i).getUnitName();
+                String sysunit = xcxSaParam.getSaleOrderDetails().get(i).getSysUnitName();
+                if(chuanruunit.equals(sysunit)){
+                    DetailMUnit.put("Name",chuanruunit);// 使用 对应 原始销货单上这个商品的计量单位
+                }else{
+                    DetailMUnit.put("Name",sysunit);// 使用 系统的单位
+                }
             }
             DetailM.put("Unit",DetailMUnit);
             DetailM.put("Quantity", Quantity*xishu);
@@ -408,8 +423,13 @@ public class MapToJson {
             //DetailM.put("sourceVoucherDetailId","9");//明细1 的 来源单据单据对应的明细行ID
             SaleDeliveryDetailsList.add(DetailM);
         }
-        // 如果是 全额 定金 就必须要传 OrigEarnestMoney  ---------------------------------------------------- //
-        sa.put("OrigEarnestMoney",totaltaxamount);// 有可能不是 全额定金哈 ！
+
+        if(OrigAmountFlag == null || 0.0f == OrigAmountFlag){
+
+        }else{
+            // 如果是 全额 定金 就必须要传 OrigEarnestMoney  ---------------------------------------------------- //
+            sa.put("OrigEarnestMoney",totaltaxamount);// 有可能不是 全额定金哈 ！
+        }
         sa.put("SaleOrderDetails",SaleDeliveryDetailsList);
         sa.put("Memo",xcxSaParam.getCustomerMemo()+"此单是自动同步的");//整单备注。
         dto.put("dto",sa);
@@ -772,6 +792,11 @@ public class MapToJson {
     public static String getPatnerJsonByEntity(XcxSaParam xcxSaParam,Map<String,Object> userMap,String PartnerClassCode){
         String code = xcxSaParam.getContactMobile();
         String name = xcxSaParam.getContacter()+code;
+        if(userMap == null || userMap.get("departmentCode") == null){
+            userMap = new HashMap<String,Object>();
+            userMap.put("departmentCode","412");
+            userMap.put("personCode","41203");
+        }
         String departmentCode = userMap.get("departmentCode").toString();
         String personCode = userMap.get("personCode").toString();
         String json = "{\n" +
@@ -788,8 +813,20 @@ public class MapToJson {
         return json;
     }
 
-    public static void main(String[] args) {
-        String customerResult = "\u5fae\u4fe1\u652f\u4ed8";
-        System.out.println(URLDecoder.decode(customerResult));
+    public static void main(String[] args) throws Exception{
+        String json = "{\"dto\":{\"Address\":\"重庆市重庆市渝中区两路口街道枇杷山正街237号，241号\",\"Customer\":{\"Code\":\"13320244992\"},\"Subscriptions\":[{\"origAmount\":1814.0,\"BankAccount\":{\"Name\":\"小程序线下账户\"},\"SettleStyle\":{\"Code\":\"997\"}}],\"LinkMan\":\"渝亮\",\"OrigEarnestMoney\":1814.0,\"BusinessType\":{\"Code\":\"15\"},\"Code\":\"202212091526066879\",\"ContactPhone\":\"13320244992\",\"Department\":{\"Code\":\"401\"},\"VoucherDate\":\"2022-12-09 15:26:13\",\"Clerk\":{\"Code\":\"32\"},\"SettleCustomer\":{\"Code\":\"13320244992\"},\"ReciveType\":{\"Code\":\"01\"},\"SaleOrderDetails\":[{\"DetailMemo\":\"\",\"TaxRate\":\"0.09\",\"Quantity\":1.0,\"IsPresent\":false,\"Unit\":{\"Name\":\"袋\"},\"OrigTaxPrice\":398.0,\"Inventory\":{\"code\":\"6975508622129\"}},{\"DetailMemo\":\"\",\"TaxRate\":\"0.09\",\"Quantity\":1.0,\"IsPresent\":false,\"Unit\":{\"Name\":\"件\"},\"OrigTaxPrice\":619.0,\"Inventory\":{\"code\":\"6975508620613\"}},{\"DetailMemo\":\"\",\"TaxRate\":\"0.06\",\"Quantity\":1.0,\"IsPresent\":false,\"Unit\":{\"Name\":\"件\"},\"OrigTaxPrice\":299.0,\"Inventory\":{\"code\":\"6975508622259\"}},{\"DetailMemo\":\"\",\"TaxRate\":\"0.09\",\"Quantity\":1.0,\"IsPresent\":false,\"Unit\":{\"Name\":\"袋\"},\"OrigTaxPrice\":498.0,\"Inventory\":{\"code\":\"6975508622150\"}}],\"Memo\":\"此单是自动同步的\",\"ExternalCode\":\"ca3e5a199ae6595082164f5bc114cb2f\"}}";
+        String ss = HttpClient.HttpPost(
+                "/tplus/api/v2/saleOrder/Create",
+                json,
+                "3uWZf0mu",
+                "F07A56582E5DDBC8F68358940138DBF5",
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJpc3YiLCJpc3MiOiJjaGFuamV0IiwidXNlcklkIjoiMzg4NzI2NzkwNjIxNzc3Iiwib3JnSWQiOiIxMjM0NjkwMjY5MDE2MDMwIiwiYWNjZXNzX3Rva2VuIjoiMWRmNWFiZWEtMDM1YS00N2YwLWIyZWQtYjEzOWYzMGU0Mzk4IiwiYXVkIjoiaXN2IiwibmJmIjoxNjcwNzA5NjAzLCJhcHBJZCI6IjU4Iiwic2NvcGUiOiJhdXRoX2FsbCIsImlkIjoiNTI5MDJmMzMtYzE4MS00MTRjLWI0NDEtOGRlOGQyZjYwOTViIiwiZXhwIjoxNjcxMjI4MDAzLCJpYXQiOjE2NzA3MDk2MDMsIm9yZ0FjY291bnQiOiJ1bWpwYXg2bGpob2IifQ.qEJn78VEbISwRIR54nF82D9LawtoSaLn6beL5vkhpWA");
+
+        JSONObject jss = JSONObject.parseObject(ss);
+        System.out.println(jss);
+        if(jss != null && !"".equals(jss)){
+            System.out.println(jss.getString("message"));
+        }
+
     }
 }

@@ -275,30 +275,55 @@ public class BasicServiceImpl implements BasicService {
         try {
             //关键是传入的这个 map 必须要包含 销售订单 需要的所有内容
             Map<String,Object> userMap = orderMapper.getUserInfoByMobile(xcxSaParam.getClerkMobile());
-
-            //处理这个往来单位的 分类的 code
-            String address = xcxSaParam.getAddress();//黑龙江省鸡西市鸡东县申达小区A坐5号门市麻小旋小火锅
-            String PartnerClassCode = "QT";//这个往来单位 所属的末级 分类 编码
-            String shi = "";//市
-            if(address.indexOf("省") != -1){ //有 “省”
-                if(address.indexOf("市") != -1){//有 “市”
-                    shi = address.substring(address.indexOf("省")+1,address.indexOf("市")); //鸡西
-                    PartnerClassCode = orderMapper.getPartnerClassCodeBySHI(shi);
-                }
+            // 为了简化 maptojson 里面的逻辑，就在service里面来处理了。
+            if(xcxSaParam.getClerkMobile() == null || "".equals(xcxSaParam.getClerkMobile())){
+                userMap = new HashMap<String,Object>();
+                userMap.put("departmentCode","412");
+                userMap.put("personCode","41203");
             }else{
-                if(address.indexOf("市") != -1){//有 “市”
-                    shi = address.substring(0,address.indexOf("市")); //鸡西
-                    PartnerClassCode = orderMapper.getPartnerClassCodeBySHI(shi);
+                if(userMap == null || "".equals(userMap.get("departmentCode").toString()) ){
+                    userMap = new HashMap<String,Object>();
+                    userMap.put("departmentCode","400");
+                    userMap.put("personCode","4002");
                 }
-            }
-            if(PartnerClassCode == null || "".equals(PartnerClassCode)){
-                PartnerClassCode = "QT";
             }
 
             //先判断这个往来单位有没有哦
             String customerCode = xcxSaParam.getCustomerCode();//小程序传入的code
             String customerResult = "1";
             if(orderMapper.getCustomerCount(customerCode) == 0){
+                //没有这个往来单位，才需要去 创建 啊！
+                /*
+                 * 宁夏回族自治区银川市金凤区福州南街104号煮小篓盘盘麻辣烫
+                 * 湖北省恩施土家族苗族自治州恩施市莲湖花园华龙城三期九街淑芬掌中宝串串公司
+                 * 云南省德宏傣族景颇族自治州瑞丽市彩云城55栋13号
+                 * 四川省凉山彝族自治州会理县 顺城东路461号
+                 * 广西壮族自治区贺州市钟山县西乐街58号
+                 * 内蒙古自治区呼伦贝尔市莫力达瓦达斡尔族自治旗餐饮街阳光最美烧烤收
+                 * */
+                //处理这个往来单位的 分类的 code
+                String address = xcxSaParam.getAddress();//黑龙江省鸡西市鸡东县申达小区A坐5号门市麻小旋小火锅
+                String PartnerClassCode = "QT";//这个往来单位 所属的末级 分类 编码
+                String shi = "";//市
+                if(address.indexOf("省") != -1){ //有 “省”
+                    if(address.indexOf("市") != -1){//有 “市”
+                        if(address.indexOf("重庆") != -1){// 重庆比较特殊！
+                            PartnerClassCode = "CQ";
+                        }else{
+                            shi = address.substring(address.indexOf("省")+1,address.indexOf("市")+1); //这句会报错！！！
+                            PartnerClassCode = orderMapper.getPartnerClassCodeBySHI(shi);
+                        }
+                    }
+                }else{// 无 ”省“
+                    if(address.indexOf("市") != -1){//有 “市”
+                        shi = address.substring(0,address.indexOf("市")+1);
+                        PartnerClassCode = orderMapper.getPartnerClassCodeBySHI(shi);
+                    }
+                }
+                if(PartnerClassCode == null || "".equals(PartnerClassCode)){
+                    PartnerClassCode = "QT";
+                }
+
                 String customerjson = MapToJson.getPatnerJsonByEntity(xcxSaParam,userMap,PartnerClassCode);
                 LOGGER.info("--- 访问创建客户API json == " + customerjson);
                 customerResult = HttpClient.HttpPost(
@@ -310,31 +335,55 @@ public class BasicServiceImpl implements BasicService {
             }
             if("15".equals(xcxSaParam.getBusinessType())){
                 if(Integer.valueOf(customerResult.replaceAll("\"","")) > 0 ){//说明 请求 创建往来单位API 成功了！
-                    //再设置税率
+                    //先设置税率
                     for(int i=0;i<xcxSaParam.getSaleOrderDetails().size();i++ ){
                         String inventoryCode = xcxSaParam.getSaleOrderDetails().get(i).getInventoryCode();
-                        String taxRate = orderMapper.getInvetoryTaxRateByCode(inventoryCode);//从存货档案种 获取对应的税率
-                        taxRate = "" + ( Float.valueOf(taxRate) / 100f );
-                        xcxSaParam.getSaleOrderDetails().get(i).setTaxRate(taxRate);
+                        Map<String,Object> taxRateUnit = orderMapper.getInvetoryTaxRateByCode(inventoryCode);//从存货档案种 获取对应的税率
+                        if(taxRateUnit == null || "".equals(taxRateUnit)){
+                            xcxSaParam.getSaleOrderDetails().get(i).setTaxRate("" + ( Float.valueOf("6") / 100f ));
+                            xcxSaParam.getSaleOrderDetails().get(i).setSysUnitName("件");
+                        }else{
+                            xcxSaParam.getSaleOrderDetails().get(i).setTaxRate("" + ( Float.valueOf(taxRateUnit.get("taxRate").toString()) / 100f ));
+                            xcxSaParam.getSaleOrderDetails().get(i).setSysUnitName(taxRateUnit.get("unitname").toString());
+                        }
                     }
 
                     //销售订单的JSON
                     String json = MapToJson.createSaPUOrderDTO(xcxSaParam,userMap);
                     LOGGER.info("调用T+ 创建销售订单API的json == " + json);
-                    HttpClient.HttpPost(
-                            "/tplus/api/v2/saleOrder/Create",
-                            json,
-                            "3uWZf0mu",
-                            "F07A56582E5DDBC8F68358940138DBF5",
-                            token);
+                    String apiresult1 = HttpClient.HttpPost(
+                                "/tplus/api/v2/saleOrder/Create",
+                                json,
+                                "3uWZf0mu",
+                                "F07A56582E5DDBC8F68358940138DBF5",
+                                token);
+                    LOGGER.info("1调用T+ 创建销售订单API的返回： apiresult1 == " + apiresult1);
+                    if(apiresult1 != null && !"".equals(apiresult1) && !"".equals(JSONObject.parseObject(apiresult1).getString("message"))){
+                        //说明 访问接口失败了，就 再来一次
+                        String apiresult2 = HttpClient.HttpPost(
+                                "/tplus/api/v2/saleOrder/Create",
+                                json,
+                                "3uWZf0mu",
+                                "F07A56582E5DDBC8F68358940138DBF5",
+                                token);
+                        LOGGER.info("2调用T+ 创建销售订单API的返回： apiresult2 == " + apiresult2);
+                        if(apiresult2 != null && !"".equals(apiresult2) && !"".equals(JSONObject.parseObject(apiresult2).getString("message"))){
+                            result = "{ \"result\":\" "+ JSONObject.parseObject(apiresult2).getString("message") +" \" }";
+                        }
+                    }
                 }
             }else{
-                // 退货：售后的单据，都是走 红字的销货单。要关联之前的销售订单。
+                // 退货：售后的单据， 判断是 红字的销售订单 ，还是 红字的销货单
                 for(int i=0;i<xcxSaParam.getSaleOrderDetails().size();i++ ){
                     String inventoryCode = xcxSaParam.getSaleOrderDetails().get(i).getInventoryCode();
-                    String taxRate = orderMapper.getInvetoryTaxRateByCode(inventoryCode);//从存货档案种 获取对应的税率
-                    taxRate = "" + ( Float.valueOf(taxRate) / 100f );
-                    xcxSaParam.getSaleOrderDetails().get(i).setTaxRate(taxRate);
+                    Map<String,Object> taxRateUnit = orderMapper.getInvetoryTaxRateByCode(inventoryCode);//从存货档案种 获取对应的税率
+                    if(taxRateUnit == null || "".equals(taxRateUnit)){
+                        xcxSaParam.getSaleOrderDetails().get(i).setTaxRate("" + ( Float.valueOf("6") / 100f ));
+                        xcxSaParam.getSaleOrderDetails().get(i).setSysUnitName("件");
+                    }else{
+                        xcxSaParam.getSaleOrderDetails().get(i).setTaxRate("" + ( Float.valueOf(taxRateUnit.get("taxRate").toString()) / 100f ));
+                        xcxSaParam.getSaleOrderDetails().get(i).setSysUnitName(taxRateUnit.get("unitname").toString());
+                    }
                     //明细1 的 来源单据单据对应的明细行ID
                     String sourceVoucherDetailId = orderMapper.getSourceVoucherDetailIdBy(inventoryCode,xcxSaParam.getCode());
                     xcxSaParam.getSaleOrderDetails().get(i).setSourceVoucherDetailId(sourceVoucherDetailId);
@@ -344,29 +393,52 @@ public class BasicServiceImpl implements BasicService {
                     xcxSaParam.setCode(xcxSaParam.getCode()+"-1");
                     String json = MapToJson.createSaPUOrderDTO(xcxSaParam,userMap);
                     LOGGER.info("调用T+ 创建 红字的销售订单API的json == " + json);
-                    HttpClient.HttpPost(
-                            "/tplus/api/v2/saleOrder/Create",
-                            json,
-                            "3uWZf0mu",
-                            "F07A56582E5DDBC8F68358940138DBF5",
-                            token);
+                    String apiresult1 = HttpClient.HttpPost(
+                                "/tplus/api/v2/saleOrder/Create",
+                                json,
+                                "3uWZf0mu",
+                                "F07A56582E5DDBC8F68358940138DBF5",
+                                token);
+                    LOGGER.info("1调用T+ 创建销售订单API的返回： apiresult1 == " + apiresult1);
+                    if(apiresult1 != null && !"".equals(apiresult1) && !"".equals(JSONObject.parseObject(apiresult1).getString("message"))){
+                        //说明 访问接口失败了，就 再来一次？？
+                        String apiresult2 = HttpClient.HttpPost(
+                                "/tplus/api/v2/saleOrder/Create",
+                                json,
+                                "3uWZf0mu",
+                                "F07A56582E5DDBC8F68358940138DBF5",
+                                token);
+                        LOGGER.info("2调用T+ 创建销售订单API的返回： apiresult2 == " + apiresult2);
+                        if(apiresult2 != null && !"".equals(apiresult2) && !"".equals(JSONObject.parseObject(apiresult2).getString("message"))){
+                            result = "{ \"result\":\" "+ JSONObject.parseObject(apiresult2).getString("message") +" \" }";
+                        }
+                    }
                 }else{
                     //红字的 销货单 JSON  ( 取当前 最大的尾号 + 1.再 加  横   )
                     String dqcode = orderMapper.getDQCODEBY(xcxSaParam.getCode());//查询销货单里面有没有当前这个code的编号
                     xcxSaParam.setCode(dqcode+"-1");
                     String json = MapToJson.getSAparamsJson(xcxSaParam,userMap);
                     LOGGER.info("调用T+ 创建 红字的 销货单  API的json == " + json);
-                    HttpClient.HttpPost(
-                            "/tplus/api/v2/SaleDeliveryOpenApi/Create",
-                            json,
-                            "3uWZf0mu",
-                            "F07A56582E5DDBC8F68358940138DBF5",
-                            token);
+                    try{
+                        HttpClient.HttpPost(
+                                "/tplus/api/v2/SaleDeliveryOpenApi/Create",
+                                json,
+                                "3uWZf0mu",
+                                "F07A56582E5DDBC8F68358940138DBF5",
+                                token);
+                    }catch (Exception e){
+                        HttpClient.HttpPost(
+                                "/tplus/api/v2/SaleDeliveryOpenApi/Create",
+                                json,
+                                "3uWZf0mu",
+                                "F07A56582E5DDBC8F68358940138DBF5",
+                                token);
+                    }
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
-            result = "{ \"result\":\"参数合格！但是官方API访问失败，请咨询开发\" }";
+            result = "{ \"result\":\"参数合格！但是官方API访问失败，请咨询开发（出现异常！）\" }";
             return result;
         }
         return result; // 创建成功  result:null

@@ -12,15 +12,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.URLDecoder;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -198,21 +196,22 @@ public class TokenController {
 
     //T+ 的 销售订单 创建接口
     @RequestMapping(value="/createSaPuOrder", method = {RequestMethod.GET,RequestMethod.POST})
-    public @ResponseBody String createSaPuOrder(HttpServletRequest request, HttpServletResponse response) {
+    public @ResponseBody String createSaPuOrder(@RequestBody String sign,HttpServletRequest request, HttpServletResponse response) {
         LOGGER.info("------------------- 小程序调用了T+的 销售订单 创建API -------------------");
         try{
             String today = new SimpleDateFormat("yyyyMMdd").format(new Date());//当日
             String key = Md5.md5(today).substring(0,16);
-            String sign = request.getParameter("sign");
-
-            LOGGER.info("-------- 销售订单api (空格转义前) sign == " + sign);
+            //String sign = request.getParameter("sign");
+            sign = URLDecoder.decode(sign,"UTF-8");
+            //LOGGER.info("-------- 销售订单api (转义处理前) sign == " + sign);
             sign = sign.replaceAll(" ","+");
-            LOGGER.info("-------- 销售订单api (空格转义后) sign == " + sign);
+            sign = sign.replaceAll("sign=","");
+            //LOGGER.info("-------- 销售订单api (转义处理后) sign == " + sign);
 
             String token = orderMapper.getTokenByAppKey("3uWZf0mu");//3uWZf0mu(正式)
             if(sign != null && !"".equals(sign)){
                 String parmaJosnStr = EncryptUtil.decrypt(sign,key);
-                LOGGER.info("-------- 小程序订单解密后的Str == " + parmaJosnStr);
+                LOGGER.info("-------- 小程序订单信息解密后的Str == " + parmaJosnStr);
                 JSONObject job = JSONObject.parseObject(parmaJosnStr);
                 XcxSaParam xcxSaParam =  job.toJavaObject(XcxSaParam.class);//销货单的订阅信息DTO
                 List<Map<String,Object>> saPuOrderList = orderMapper.getSaPuOrderList(xcxSaParam.getCode(),"","");
@@ -241,9 +240,9 @@ public class TokenController {
             String key = Md5.md5(today).substring(0,16);
             String sign = request.getParameter("sign");
 
-            LOGGER.info("-------- 获取仓库列表(空格转义前) sign == " + sign);
+            //LOGGER.info("-------- 获取仓库列表(空格转义前) sign == " + sign);
             sign = sign.replaceAll(" ","+");
-            LOGGER.info("-------- 获取仓库列表(空格转义后) sign == " + sign);
+            //LOGGER.info("-------- 获取仓库列表(空格转义后) sign == " + sign);
 
             String token = orderMapper.getTokenByAppKey("3uWZf0mu");
             if(sign != null && !"".equals(sign)){
@@ -271,9 +270,9 @@ public class TokenController {
             String key = Md5.md5(today).substring(0,16);
             String sign = request.getParameter("sign");
 
-            LOGGER.info("-------- 销售订单列表(空格转义前) sign == " + sign);
+            //LOGGER.info("-------- 销售订单列表(空格转义前) sign == " + sign);
             sign = sign.replaceAll(" ","+");
-            LOGGER.info("-------- 销售订单列表(空格转义后) sign == " + sign);
+            //LOGGER.info("-------- 销售订单列表(空格转义后) sign == " + sign);
 
             String token = orderMapper.getTokenByAppKey("3uWZf0mu");
             if(sign != null && !"".equals(sign)){
@@ -306,9 +305,9 @@ public class TokenController {
             String key = Md5.md5(today).substring(0,16);
             String sign = request.getParameter("sign");
 
-            LOGGER.info("-------- 账号获取列表(空格转义前) sign == " + sign);
+            //LOGGER.info("-------- 账号获取列表(空格转义前) sign == " + sign);
             sign = sign.replaceAll(" ","+");
-            LOGGER.info("-------- 账号获取列表(空格转义后) sign == " + sign);
+            //LOGGER.info("-------- 账号获取列表(空格转义后) sign == " + sign);
 
             String token = orderMapper.getTokenByAppKey("3uWZf0mu");
             if(sign != null && !"".equals(sign)){

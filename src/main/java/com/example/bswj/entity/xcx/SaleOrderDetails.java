@@ -19,6 +19,7 @@ public class SaleOrderDetails {
     private String Memo;
     private String taxRate;
     private String sourceVoucherDetailId;
+    private String sysUnitName;
     public void setInventoryCode(String InventoryCode) {
          this.InventoryCode = InventoryCode;
      }
@@ -75,5 +76,13 @@ public class SaleOrderDetails {
 
     public void setSourceVoucherDetailId(String sourceVoucherDetailId) {
         this.sourceVoucherDetailId = sourceVoucherDetailId;
+    }
+
+    public String getSysUnitName() {
+        return sysUnitName;
+    }
+
+    public void setSysUnitName(String sysUnitName) {
+        this.sysUnitName = sysUnitName;
     }
 }
