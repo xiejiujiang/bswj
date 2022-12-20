@@ -207,7 +207,6 @@ public class TokenController {
             sign = sign.replaceAll(" ","+");
             sign = sign.replaceAll("sign=","");
             //LOGGER.info("-------- 销售订单api (转义处理后) sign == " + sign);
-
             String token = orderMapper.getTokenByAppKey("3uWZf0mu");//3uWZf0mu(正式)
             if(sign != null && !"".equals(sign)){
                 String parmaJosnStr = EncryptUtil.decrypt(sign,key);
@@ -269,23 +268,20 @@ public class TokenController {
             String today = new SimpleDateFormat("yyyyMMdd").format(new Date());//当日
             String key = Md5.md5(today).substring(0,16);
             String sign = request.getParameter("sign");
-
-            //LOGGER.info("-------- 销售订单列表(空格转义前) sign == " + sign);
             sign = sign.replaceAll(" ","+");
-            //LOGGER.info("-------- 销售订单列表(空格转义后) sign == " + sign);
 
-            String token = orderMapper.getTokenByAppKey("3uWZf0mu");
             if(sign != null && !"".equals(sign)){
                 String parmaJosnStr = EncryptUtil.decrypt(sign,key);
                 LOGGER.info("-------- 获取销售订单列表解密后的Str == " + parmaJosnStr);
-                JSONObject job = JSONObject.parseObject(parmaJosnStr);
-                String Code = job.getString("Code"); // 订单编号
-                String startDate = ""+job.getString("StartDate");//开始时间
-                String endDate = ""+job.getString("EndDate");//结束时间
-                if(Code == null || "".equals(Code)){
-                    Code = "";
+                if(parmaJosnStr == null || "".equals(parmaJosnStr) ){
+                    return basicService.getSaPuOrderList("","","");
+                }else{
+                    JSONObject job = JSONObject.parseObject(parmaJosnStr);
+                    String Code = job.getString("Code"); // 订单编号
+                    String startDate = ""+job.getString("StartDate");//开始时间
+                    String endDate = ""+job.getString("EndDate");//结束时间
+                    return basicService.getSaPuOrderList(Code,startDate,endDate);
                 }
-                return basicService.getSaPuOrderList(Code,startDate,endDate,token);
             }else{
                 return "{ \"result\":\"参数不合格！\" }";
             }
@@ -294,7 +290,6 @@ public class TokenController {
             return "{ \"result\":\"程序异常，请咨询开发！\"}";
         }
     }
-
 
     //账号获取 列表 API
     @RequestMapping(value="/getBankNameList", method = {RequestMethod.GET,RequestMethod.POST})

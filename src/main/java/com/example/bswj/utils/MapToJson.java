@@ -824,7 +824,7 @@ public class MapToJson {
 
         JSONObject jss = JSONObject.parseObject(ss);
         System.out.println(jss);
-        if(jss != null && !"".equals(jss)){
+        if(jss != null && !"".equals(ss) && !"null".equals(ss)){
             System.out.println(jss.getString("message"));
         }
 

@@ -64,7 +64,7 @@ public interface BasicService {
 
     String getWarehouseList(String Code,String token);
 
-    String getSaPuOrderList(String Code,String startDate,String endDate,String token);
+    String getSaPuOrderList(String Code,String startDate,String endDate);
 
     String getBankNameList(String token);
 

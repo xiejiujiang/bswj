@@ -72,13 +72,13 @@
                t3.name as partnerName,t1.taxAmount
         from SA_SaleOrder t1,AA_Partner t3
         where t1.idcustomer = t3.id
-        <if test="startDate !='' ">
+        <if test="startDate !='' AND  startDate != NULL">
             and t1.voucherdate >= #{startDate}
         </if>
-        <if test="endDate !='' ">
+        <if test="endDate !='' AND  endDate != NULL">
             and t1.voucherdate <![CDATA[ <= ]]> #{endDate}
         </if>
-        <if test="Code !='' ">
+        <if test="Code !='' AND  Code != NULL">
             and t1.code = #{Code}
         </if>
     </select>
@@ -102,8 +102,9 @@
         select count(id) from SA_SaleDelivery where SourceVoucherCode = #{Code}
     </select>
 
-    <select id="getSourceVoucherDetailIdBy" resultType="java.lang.Integer" parameterType="java.lang.String">
-        select top 1  t1.id
+    <select id="getSourceVoucherDetailIdBy" resultType="java.lang.String" parameterType="java.lang.String">
+        select top 1
+        CAST(t1.id AS nvarchar) as sourceId
         from  SA_SaleDelivery_b t1,AA_inventory t2,SA_SaleDelivery t3
         where t1.idinventory = t2.id and t2.code = #{inventoryCode} and t1.idSaleDeliveryDTO = t3.id
         and t3.code = #{code}

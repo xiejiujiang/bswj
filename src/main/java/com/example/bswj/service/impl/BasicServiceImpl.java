@@ -358,7 +358,8 @@ public class BasicServiceImpl implements BasicService {
                                 "F07A56582E5DDBC8F68358940138DBF5",
                                 token);
                     LOGGER.info("1调用T+ 创建销售订单API的返回： apiresult1 == " + apiresult1);
-                    if(apiresult1 != null && !"".equals(apiresult1) && !"".equals(JSONObject.parseObject(apiresult1).getString("message"))){
+                    if(apiresult1 != null && !"".equals(apiresult1) && !"null".equals(apiresult1)
+                            && !"".equals(JSONObject.parseObject(apiresult1).getString("message"))){
                         //说明 访问接口失败了，就 再来一次
                         String apiresult2 = HttpClient.HttpPost(
                                 "/tplus/api/v2/saleOrder/Create",
@@ -367,7 +368,8 @@ public class BasicServiceImpl implements BasicService {
                                 "F07A56582E5DDBC8F68358940138DBF5",
                                 token);
                         LOGGER.info("2调用T+ 创建销售订单API的返回： apiresult2 == " + apiresult2);
-                        if(apiresult2 != null && !"".equals(apiresult2) && !"".equals(JSONObject.parseObject(apiresult2).getString("message"))){
+                        if(apiresult2 != null && !"".equals(apiresult2) && !"null".equals(apiresult2)
+                                && !"".equals(JSONObject.parseObject(apiresult2).getString("message"))){
                             result = "{ \"result\":\" "+ JSONObject.parseObject(apiresult2).getString("message") +" \" }";
                         }
                     }
@@ -400,7 +402,8 @@ public class BasicServiceImpl implements BasicService {
                                 "F07A56582E5DDBC8F68358940138DBF5",
                                 token);
                     LOGGER.info("1调用T+ 创建销售订单API的返回： apiresult1 == " + apiresult1);
-                    if(apiresult1 != null && !"".equals(apiresult1) && !"".equals(JSONObject.parseObject(apiresult1).getString("message"))){
+                    if(apiresult1 != null && !"".equals(apiresult1) && !"null".equals(apiresult1)
+                            && !"".equals(JSONObject.parseObject(apiresult1).getString("message"))){
                         //说明 访问接口失败了，就 再来一次？？
                         String apiresult2 = HttpClient.HttpPost(
                                 "/tplus/api/v2/saleOrder/Create",
@@ -409,7 +412,8 @@ public class BasicServiceImpl implements BasicService {
                                 "F07A56582E5DDBC8F68358940138DBF5",
                                 token);
                         LOGGER.info("2调用T+ 创建销售订单API的返回： apiresult2 == " + apiresult2);
-                        if(apiresult2 != null && !"".equals(apiresult2) && !"".equals(JSONObject.parseObject(apiresult2).getString("message"))){
+                        if(apiresult2 != null && !"".equals(apiresult2) && !"null".equals(apiresult2)
+                                && !"".equals(JSONObject.parseObject(apiresult2).getString("message"))){
                             result = "{ \"result\":\" "+ JSONObject.parseObject(apiresult2).getString("message") +" \" }";
                         }
                     }
@@ -606,24 +610,10 @@ public class BasicServiceImpl implements BasicService {
         }
     }
 
-    public String getSaPuOrderList(String Code,String startDate,String endDate,String token){
-        String result = "";
+    public String getSaPuOrderList(String Code,String startDate,String endDate){
         try {
-            String json = "";
-            //关键是传入的这个 map 必须要包含 往来单位 需要的所有内容
-            if(Code != null && !"".equals(Code)){
-                json = "{ param:{\"voucherCode:\""+Code+"\"} }";
-            }else{
-                json = "{ param:{ } }";
-            }
-            /*result = HttpClient.HttpPost("/tplus/api/v2/SaleOrderOpenApi/GetVoucherDTO",
-                    json,
-                    "3uWZf0mu",
-                    "F07A56582E5DDBC8F68358940138DBF5",
-                    token);*/
             List<Map<String,Object>> map = orderMapper.getSaPuOrderList(Code,startDate,endDate);
-            result = JSONObject.toJSONString(map);
-            return result;
+            return JSONObject.toJSONString(map);
         }catch (Exception e) {
             e.printStackTrace();
             return "{ \"result\":\"程序异常，请重试！\" }";
