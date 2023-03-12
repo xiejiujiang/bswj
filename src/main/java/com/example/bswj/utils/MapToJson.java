@@ -299,7 +299,8 @@ public class MapToJson {
         }else{
             sa.put("VoucherDate",VoucherDate);//单据日期  如果 小程序 不传，就可以 使用 当前日期
         }
-        sa.put("ExternalCode",Md5.md5("XJJ"+System.currentTimeMillis()));//外部订单号，不可以重复（MD5，建议记录）
+        //sa.put("ExternalCode",Md5.md5("XJJ"+System.currentTimeMillis()));//外部订单号，不可以重复（MD5，建议记录） Md5.md5(""+Math.random())
+        sa.put("ExternalCode",Md5.md5(""+Math.random()));//外部订单号，不可以重复（MD5，建议记录）
         sa.put("Address",xcxSaParam.getAddress());//送货地址
         sa.put("LinkMan",xcxSaParam.getContacter());//联系人
         sa.put("ContactPhone",xcxSaParam.getContactMobile() );//联系电话
@@ -340,14 +341,38 @@ public class MapToJson {
                     totaltaxamount = totaltaxamount + xcxSaParam.getSubscriptions().get(i).getOrigAmount();
                 }
 
-                Map<String,Object> BankAccount = new HashMap<String,Object>();
                 String BankAccountName = xcxSaParam.getSubscriptions().get(i).getBankAccount();//账号名称
-                if("1627902008".equals(BankAccountName) || "1625792544".equals("BankAccountName")){
+                String settlyStr = xcxSaParam.getSubscriptions().get(i).getSettleStyle();//小程序传入的 支付方式
+                if(settlyStr.contains("PC端支付")){
+                    Map<String,Object> BankAccount = new HashMap<String,Object>();
+                    BankAccount.put("Name","小程序线下账户");
+                    settleMap.put("BankAccount",BankAccount);
+                    //查询次账号在T+中对应的默认结算方式。
+                    Map<String,Object> SettleStyle = new HashMap<String,Object>();
+                    SettleStyle.put("Code","997");// 写死： 转账
+                    settleMap.put("SettleStyle",SettleStyle);
+                }else{
+                    Map<String,Object> SettleStyle = new HashMap<String,Object>();
+                    if(settlyStr.contains("微信")){
+                        SettleStyle.put("Code","998");
+                    }
+                    if(settlyStr.contains("支付宝")){
+                        SettleStyle.put("Code","999");
+                    }
+                    if(!settlyStr.contains("微信") && !settlyStr.contains("支付宝")){
+                        SettleStyle.put("Code","997");// 写死： 转账
+                    }
+                    settleMap.put("SettleStyle",SettleStyle);
+                    Map<String,Object> BankAccount = new HashMap<String,Object>();
+                    BankAccount.put("Name","小程序线上账户");
+                    settleMap.put("BankAccount",BankAccount);
+                }
+
+                /*if("1627902008".equals(BankAccountName) || "1625792544".equals("BankAccountName")){
                     BankAccount.put("Name","小程序线上账户"); //微信支付下有两个 账号：1627902008、1625792544
                     settleMap.put("BankAccount",BankAccount);
                     //查询次账号在T+中对应的默认结算方式。
                     Map<String,Object> SettleStyle = new HashMap<String,Object>();
-                    String settlyStr = xcxSaParam.getSubscriptions().get(i).getSettleStyle();//小程序传入的 支付方式
                     if(settlyStr.contains("微信")){
                         SettleStyle.put("Code","998");
                     }
@@ -365,7 +390,7 @@ public class MapToJson {
                     Map<String,Object> SettleStyle = new HashMap<String,Object>();
                     SettleStyle.put("Code","997");// 写死： 转账
                     settleMap.put("SettleStyle",SettleStyle);
-                }
+                }*/
                 SaleDeliverySettlements.add(settleMap);
             }
             sa.put("Subscriptions",SaleDeliverySettlements);
@@ -385,19 +410,29 @@ public class MapToJson {
             Map<String,Object> DetailM = new HashMap<String,Object>();
             Map<String,Object> DetailMInventory = new HashMap<String,Object>();
             String inventoryCode = xcxSaParam.getSaleOrderDetails().get(i).getInventoryCode();
-            DetailMInventory.put("code",inventoryCode);//明细1 的 存货编码
+            DetailMInventory.put("code",inventoryCode.replaceAll(" ",""));//明细1 的 存货编码
             DetailM.put("Inventory",DetailMInventory);
             Map<String,Object> DetailMUnit = new HashMap<String,Object>();
             if(xcxSaParam.getSaleOrderDetails().get(i).getUnitName()==null || "".equals(xcxSaParam.getSaleOrderDetails().get(i).getUnitName())){
                 DetailMUnit.put("Name","件");// 使用 对应 原始销货单上这个商品的计量单位
             }else{//如果传入的单位和系统的单位一致，就用传入的，否则就用系统的
                 String chuanruunit = xcxSaParam.getSaleOrderDetails().get(i).getUnitName();
-                String sysunit = xcxSaParam.getSaleOrderDetails().get(i).getSysUnitName();
-                if(chuanruunit.equals(sysunit)){
-                    DetailMUnit.put("Name",chuanruunit);// 使用 对应 原始销货单上这个商品的计量单位
+                String sysunit = xcxSaParam.getSaleOrderDetails().get(i).getSysUnitName();// 单  或者  是 计量单位组的名称
+                if(sysunit.contains(chuanruunit)){// 传入的 只会有 件 。也就是说：T+的计量单位组里面是包含了  件
+                    DetailMUnit.put("Name",chuanruunit);// 传入的  件
                 }else{
-                    DetailMUnit.put("Name",sysunit);// 使用 系统的单位
+                    if(sysunit.length() == 1){
+                        DetailMUnit.put("Name",sysunit);
+                    }else{
+                        DetailMUnit.put("Name",sysunit.substring(sysunit.indexOf("/")+1,sysunit.indexOf("/")+2));
+                    }
                 }
+                //String sysunit = xcxSaParam.getSaleOrderDetails().get(i).getSysUnitName();
+                //if(chuanruunit.equals(sysunit)){
+                    //DetailMUnit.put("Name",chuanruunit);// 使用 对应 原始销货单上这个商品的计量单位
+                //}else{
+                    //DetailMUnit.put("Name",sysunit);// 使用 系统的单位
+                //}
             }
             DetailM.put("Unit",DetailMUnit);
             DetailM.put("Quantity", Quantity*xishu);
@@ -813,20 +848,132 @@ public class MapToJson {
         return json;
     }
 
-    public static void main(String[] args) throws Exception{
-        String json = "{\"dto\":{\"Address\":\"重庆市重庆市渝中区两路口街道枇杷山正街237号，241号\",\"Customer\":{\"Code\":\"13320244992\"},\"Subscriptions\":[{\"origAmount\":1814.0,\"BankAccount\":{\"Name\":\"小程序线下账户\"},\"SettleStyle\":{\"Code\":\"997\"}}],\"LinkMan\":\"渝亮\",\"OrigEarnestMoney\":1814.0,\"BusinessType\":{\"Code\":\"15\"},\"Code\":\"202212091526066879\",\"ContactPhone\":\"13320244992\",\"Department\":{\"Code\":\"401\"},\"VoucherDate\":\"2022-12-09 15:26:13\",\"Clerk\":{\"Code\":\"32\"},\"SettleCustomer\":{\"Code\":\"13320244992\"},\"ReciveType\":{\"Code\":\"01\"},\"SaleOrderDetails\":[{\"DetailMemo\":\"\",\"TaxRate\":\"0.09\",\"Quantity\":1.0,\"IsPresent\":false,\"Unit\":{\"Name\":\"袋\"},\"OrigTaxPrice\":398.0,\"Inventory\":{\"code\":\"6975508622129\"}},{\"DetailMemo\":\"\",\"TaxRate\":\"0.09\",\"Quantity\":1.0,\"IsPresent\":false,\"Unit\":{\"Name\":\"件\"},\"OrigTaxPrice\":619.0,\"Inventory\":{\"code\":\"6975508620613\"}},{\"DetailMemo\":\"\",\"TaxRate\":\"0.06\",\"Quantity\":1.0,\"IsPresent\":false,\"Unit\":{\"Name\":\"件\"},\"OrigTaxPrice\":299.0,\"Inventory\":{\"code\":\"6975508622259\"}},{\"DetailMemo\":\"\",\"TaxRate\":\"0.09\",\"Quantity\":1.0,\"IsPresent\":false,\"Unit\":{\"Name\":\"袋\"},\"OrigTaxPrice\":498.0,\"Inventory\":{\"code\":\"6975508622150\"}}],\"Memo\":\"此单是自动同步的\",\"ExternalCode\":\"ca3e5a199ae6595082164f5bc114cb2f\"}}";
-        String ss = HttpClient.HttpPost(
-                "/tplus/api/v2/saleOrder/Create",
-                json,
-                "3uWZf0mu",
-                "F07A56582E5DDBC8F68358940138DBF5",
-                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJpc3YiLCJpc3MiOiJjaGFuamV0IiwidXNlcklkIjoiMzg4NzI2NzkwNjIxNzc3Iiwib3JnSWQiOiIxMjM0NjkwMjY5MDE2MDMwIiwiYWNjZXNzX3Rva2VuIjoiMWRmNWFiZWEtMDM1YS00N2YwLWIyZWQtYjEzOWYzMGU0Mzk4IiwiYXVkIjoiaXN2IiwibmJmIjoxNjcwNzA5NjAzLCJhcHBJZCI6IjU4Iiwic2NvcGUiOiJhdXRoX2FsbCIsImlkIjoiNTI5MDJmMzMtYzE4MS00MTRjLWI0NDEtOGRlOGQyZjYwOTViIiwiZXhwIjoxNjcxMjI4MDAzLCJpYXQiOjE2NzA3MDk2MDMsIm9yZ0FjY291bnQiOiJ1bWpwYXg2bGpob2IifQ.qEJn78VEbISwRIR54nF82D9LawtoSaLn6beL5vkhpWA");
+    // 宏勇二开的项目 勇的。注意哦 !
+    public static String createBomJson(Map<String,Object> paramsMap){
+        Map<String,Object> dto = new HashMap<String,Object>();
+        Map<String,Object> sa = new HashMap<String,Object>();
 
-        JSONObject jss = JSONObject.parseObject(ss);
-        System.out.println(jss);
-        if(jss != null && !"".equals(ss) && !"null".equals(ss)){
-            System.out.println(jss.getString("message"));
+        Map<String,Object> Inventory = new HashMap<String,Object>();
+        Inventory.put("Code",paramsMap.get("code").toString());
+        sa.put("Inventory",Inventory);
+
+        Map<String,Object> routing = new HashMap<String,Object>();
+        routing.put("Code","01");// 自制加工  对应工序： 压贴
+        sa.put("Routing",routing);
+
+        Map<String,Object> Manufactureplant = new HashMap<String,Object>();
+        Manufactureplant.put("Code","01");// 生产车间，部门DTO   生成部
+        sa.put("Manufactureplant",Manufactureplant);
+
+        Map<String,Object> Warehouse = new HashMap<String,Object>();
+        Warehouse.put("Code",paramsMap.get("yurucode").toString());// 预入仓库， 查询 这个存货档案中 维护的预入仓库
+        sa.put("Warehouse",Warehouse);
+
+        Map<String,Object> Unit = new HashMap<String,Object>();
+        Unit.put("Name",paramsMap.get("unitname").toString());
+        sa.put("Unit",Unit);
+
+        sa.put("Version","1.0");
+        sa.put("ProduceQuantity","1");
+        sa.put("YieldRate","1.0");
+
+        List<Map<String,Object>> BOMChildDTOs = new ArrayList<Map<String,Object>>();
+        if(paramsMap.get("invena1code") != null && !"".equals(paramsMap.get("invena1code").toString())){
+            Map<String,Object> DetailM = new HashMap<String,Object>();
+            Map<String,Object> InventoryChild = new HashMap<String,Object>();
+            InventoryChild.put("Code",paramsMap.get("invena1code").toString());
+            DetailM.put("Inventory",InventoryChild);
+
+            Map<String,Object> InventoryChildUnit = new HashMap<String,Object>();
+            InventoryChildUnit.put("Name",paramsMap.get("invena1uname").toString());
+            DetailM.put("Unit",InventoryChildUnit);
+
+            Map<String,Object> ChildInventoryWarehouse = new HashMap<String,Object>();
+            ChildInventoryWarehouse.put("Code",paramsMap.get("yuchu1").toString());//子件的预出仓库
+            DetailM.put("Warehouse",ChildInventoryWarehouse);
+
+            Map<String,Object> ChildInventoryProcess = new HashMap<String,Object>();
+            ChildInventoryProcess.put("Code","01");//对应工序： 压贴
+            DetailM.put("Process",ChildInventoryProcess);
+
+            DetailM.put("RequiredQuantity","1");
+            BOMChildDTOs.add(DetailM);
         }
+        if(paramsMap.get("invena3code").toString().equals(paramsMap.get("invena4code").toString())){
+            if(paramsMap.get("invena3code") != null && !"".equals(paramsMap.get("invena3code").toString())){
+                Map<String,Object> DetailM = new HashMap<String,Object>();
+                Map<String,Object> InventoryChild = new HashMap<String,Object>();
+                InventoryChild.put("Code",paramsMap.get("invena3code").toString());
+                DetailM.put("Inventory",InventoryChild);
+
+                Map<String,Object> InventoryChildUnit = new HashMap<String,Object>();
+                InventoryChildUnit.put("Name",paramsMap.get("invena3uname").toString());
+                DetailM.put("Unit",InventoryChildUnit);
+
+                Map<String,Object> ChildInventoryWarehouse = new HashMap<String,Object>();
+                ChildInventoryWarehouse.put("Code",paramsMap.get("yuchu3").toString());//子件的预出仓库
+                DetailM.put("Warehouse",ChildInventoryWarehouse);
+
+                Map<String,Object> ChildInventoryProcess = new HashMap<String,Object>();
+                ChildInventoryProcess.put("Code","01");//对应工序： 压贴
+                DetailM.put("Process",ChildInventoryProcess);
+
+                DetailM.put("RequiredQuantity","2");
+                BOMChildDTOs.add(DetailM);
+            }
+        }else{
+            if(paramsMap.get("invena3code") != null && !"".equals(paramsMap.get("invena3code").toString())){
+                Map<String,Object> DetailM = new HashMap<String,Object>();
+                Map<String,Object> InventoryChild = new HashMap<String,Object>();
+                InventoryChild.put("Code",paramsMap.get("invena3code").toString());
+                DetailM.put("Inventory",InventoryChild);
+
+                Map<String,Object> InventoryChildUnit = new HashMap<String,Object>();
+                InventoryChildUnit.put("Name",paramsMap.get("invena3uname").toString());
+                DetailM.put("Unit",InventoryChildUnit);
+
+                Map<String,Object> ChildInventoryWarehouse = new HashMap<String,Object>();
+                ChildInventoryWarehouse.put("Code",paramsMap.get("yuchu3").toString());//子件的预出仓库
+                DetailM.put("Warehouse",ChildInventoryWarehouse);
+
+                Map<String,Object> ChildInventoryProcess = new HashMap<String,Object>();
+                ChildInventoryProcess.put("Code","01");//对应工序： 压贴
+                DetailM.put("Process",ChildInventoryProcess);
+
+                DetailM.put("RequiredQuantity","1");
+                BOMChildDTOs.add(DetailM);
+            }
+            if(paramsMap.get("invena4code") != null && !"".equals(paramsMap.get("invena4code").toString())){
+                Map<String,Object> DetailM = new HashMap<String,Object>();
+                Map<String,Object> InventoryChild = new HashMap<String,Object>();
+                InventoryChild.put("Code",paramsMap.get("invena4code").toString());
+                DetailM.put("Inventory",InventoryChild);
+
+                Map<String,Object> InventoryChildUnit = new HashMap<String,Object>();
+                InventoryChildUnit.put("Name",paramsMap.get("invena4uname").toString());
+                DetailM.put("Unit",InventoryChildUnit);
+
+                Map<String,Object> ChildInventoryWarehouse = new HashMap<String,Object>();
+                ChildInventoryWarehouse.put("Code",paramsMap.get("yuchu4").toString());//子件的预出仓库
+                DetailM.put("Warehouse",ChildInventoryWarehouse);
+
+                Map<String,Object> ChildInventoryProcess = new HashMap<String,Object>();
+                ChildInventoryProcess.put("Code","01");//对应工序： 压贴
+                DetailM.put("Process",ChildInventoryProcess);
+
+                DetailM.put("RequiredQuantity","1");
+                BOMChildDTOs.add(DetailM);
+            }
+        }
+        sa.put("BOMChildDTOs",BOMChildDTOs);
+        dto.put("dto",sa);
+        String json = JSONObject.toJSONString(dto);
+        return json;
+    }
+
+    public static void main(String[] args) throws Exception{
+        String newName = "priuserdefnvc3" + "/" + "priuserdefnvc4" + "-"+"priuserdefnvc2"+"-"+"priuserdefnvc1";
+        System.out.println("sss == " + newName);
 
     }
 }

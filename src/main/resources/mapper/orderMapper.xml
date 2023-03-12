@@ -72,22 +72,24 @@
                t3.name as partnerName,t1.taxAmount
         from SA_SaleOrder t1,AA_Partner t3
         where t1.idcustomer = t3.id
-        <if test="startDate !='' AND  startDate != NULL">
+        <if test=' startDate !="" and  startDate != null '>
             and t1.voucherdate >= #{startDate}
         </if>
-        <if test="endDate !='' AND  endDate != NULL">
+        <if test='endDate !="" and  endDate != null'>
             and t1.voucherdate <![CDATA[ <= ]]> #{endDate}
         </if>
-        <if test="Code !='' AND  Code != NULL">
+        <if test='Code !="" and  Code != null'>
             and t1.code = #{Code}
         </if>
     </select>
 
     <select id="getInvetoryTaxRateByCode" resultType="java.util.Map" parameterType="java.lang.String">
         select top 1
-        ISNULL(t2.name,9) AS taxRate,t3.name as unitname
-        from AA_inventory t1,eap_EnumItem t2,AA_Unit t3
-        where t1.code = #{inventoryCode} and t1.taxRate = t2.id and t1.idUnitBySale = t3.id
+        ISNULL(t2.name,9) AS taxRate,ISNULL(t3.name,t4.name) as unitname,t4.name as saleunitname
+        from eap_EnumItem t2,AA_inventory t1
+        left join AA_UnitGroup t3 on t1.idunitgroup = t3.id
+        left join AA_Unit t4 on t1.idUnitBySale = t4.id
+        where t1.code = #{inventoryCode} and t1.taxRate = t2.id
     </select>
 
     <select id="getCustomerCount" resultType="java.lang.Integer" parameterType="java.lang.String">
@@ -114,5 +116,63 @@
         select top 1
         ISNULL(code,#{Code}) as code
         from SA_SaleDelivery where code LIKE '%'+#{Code}+'%' order by id desc
+    </select>
+
+    <insert id="insertfordealrepeat" parameterType="java.lang.String">
+        insert into xxx_dealforrepeat(code,jsonn,vourcharstate) values(#{code},#{jsonn},'0')
+    </insert>
+
+    <select id="getfordealrepeat" resultType="java.util.Map">
+        select code,jsonn from xxx_dealforrepeat where vourcharstate = '0'
+    </select>
+
+    <update id="updatefordealrepeat" parameterType="java.lang.String">
+        update xxx_dealforrepeat set vourcharstate = '1' where code = #{code}
+    </update>
+
+    <select id="getBomMapByCode" resultType="java.util.Map" parameterType="java.lang.String">
+        select top 1
+            t1.code,t1.name,t2.name as unitname,t1.priuserdefnvc1,t1.priuserdefnvc2,
+               ISNULL(t1.priuserdefnvc3,'') as priuserdefnvc3,
+               ISNULL(t1.priuserdefnvc4,'') AS priuserdefnvc4,
+               a1.code as invena1code,u1.name as invena1uname,
+               ISNULL(a3.code,'') as invena3code,ISNULL(u3.name,'') as invena3uname,
+               ISNULL(a4.code,'') as invena4code,ISNULL(u4.name,'') as invena4uname
+             from AA_Unit t2,AA_InventoryEntity t1
+                            left join AA_inventory a1 on t1.priuserdefnvc1 = a1.name
+                            left join AA_Unit u1 on a1.idunitbymanufacture = u1.id
+                            left join AA_inventory a3 on t1.priuserdefnvc3 = a3.name
+                            left join AA_Unit u3 on a3.idunitbymanufacture = u3.id
+                            left join AA_inventory a4 on t1.priuserdefnvc4 = a4.name
+                            left join AA_Unit u4 on a4.idunitbymanufacture = u4.id
+        where t1.code = #{code} and t1.idunitbymanufacture  = t2.id
+    </select>
+
+    <select id="getDefaultWarehouseByCode" resultType="java.lang.String" parameterType="java.lang.String">
+        select top 1
+               ISNULL(t2.code,'03')
+        from AA_InventoryEntity t1 left join AA_warehouse t2
+        on t1.idwarehouse = t2.id
+        where t1.code = #{code}
+    </select>
+
+    <select id="getInventoryLevel1ClassCode" resultType="java.lang.String" parameterType="java.lang.String">
+        select  ISNULL(code,'') AS code  from AA_InventoryClass
+        where id = (select idparent from AA_InventoryClass where id = (select idinventoryclass from AA_InventoryEntity where code = #{code} ))
+    </select>
+
+    <update id="updateChildBomProcess" parameterType="java.lang.String">
+        update AA_BOMChild set idprocess = 1 where idbom = ${id};
+    </update>
+
+    <update id="updateInventoryName" parameterType="java.util.Map">
+        update AA_InventoryEntity
+        set name =  #{newName},shorthand = #{zjm}
+        where code = #{code}
+    </update>
+
+    <select id="getHYnoBomCodelist" resultType="java.lang.String">
+        select t1.code from AA_InventoryEntity t1
+        where t1.code not in ( select code from AA_BOM) and t1.idinventoryclass in (select id from AA_InventoryClass where idparent = 3 )
     </select>
 </mapper>

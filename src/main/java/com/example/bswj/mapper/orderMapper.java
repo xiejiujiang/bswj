@@ -63,4 +63,24 @@ public interface orderMapper {
     String getSourceVoucherDetailIdBy(@Param("inventoryCode")String inventoryCode,@Param("code")String code);
 
     String getDQCODEBY(@Param("Code")String Code);//查询销货单里面有没有当前这个code的编号
+
+    void insertfordealrepeat(@Param("code")String code,@Param("jsonn")String jsonn);
+
+    List<Map<String,Object>> getfordealrepeat();
+
+    void updatefordealrepeat(@Param("code")String code);
+
+    //宏勇二开的查询
+    Map<String,Object> getBomMapByCode(@Param("code")String code);
+
+    String getDefaultWarehouseByCode(@Param("code")String code);
+
+    String getInventoryLevel1ClassCode(@Param("code")String code);
+
+    void updateChildBomProcess(@Param("id")String id);
+
+    void updateInventoryName(Map<String,Object> paramsMap);
+
+    List<String> getHYnoBomCodelist();
+
 }

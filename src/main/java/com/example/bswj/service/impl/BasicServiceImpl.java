@@ -251,14 +251,14 @@ public class BasicServiceImpl implements BasicService {
                     "}";
             String access_token = orderMapper.getTokenByAppKey("3uWZf0mu");//appKey
             String auditResult = HttpClient.HttpPost("/tplus/api/v2/SaleDeliveryOpenApi/UnAudit",auditjson,
-                    "3uWZf0mu",
-                    "F07A56582E5DDBC8F68358940138DBF5",
+                    "LwInPd77",
+                    "0C789D68F375CE6C1DC026DD1BAD2115",
                     access_token);
             JSONObject unauditjob = JSONObject.parseObject(auditResult);
             if(unauditjob.getString("code").contains("999")){//如果弃审失败，就再弃审一次 试试
                 auditResult = HttpClient.HttpPost("/tplus/api/v2/SaleDeliveryOpenApi/UnAudit",auditjson,
-                        "3uWZf0mu",
-                        "F07A56582E5DDBC8F68358940138DBF5",
+                        "LwInPd77",
+                        "0C789D68F375CE6C1DC026DD1BAD2115",
                         access_token);
             }
             LOGGER.info("-------------- 单号： " + voucherCode + "的弃审结果是：" + auditResult);
@@ -329,8 +329,8 @@ public class BasicServiceImpl implements BasicService {
                 customerResult = HttpClient.HttpPost(
                         "/tplus/api/v2/partner/Create",
                         customerjson,
-                        "3uWZf0mu",
-                        "F07A56582E5DDBC8F68358940138DBF5",
+                        "LwInPd77",
+                        "0C789D68F375CE6C1DC026DD1BAD2115",
                         token);
             }
             if("15".equals(xcxSaParam.getBusinessType())){
@@ -354,8 +354,8 @@ public class BasicServiceImpl implements BasicService {
                     String apiresult1 = HttpClient.HttpPost(
                                 "/tplus/api/v2/saleOrder/Create",
                                 json,
-                                "3uWZf0mu",
-                                "F07A56582E5DDBC8F68358940138DBF5",
+                                "LwInPd77",
+                                "0C789D68F375CE6C1DC026DD1BAD2115",
                                 token);
                     LOGGER.info("1调用T+ 创建销售订单API的返回： apiresult1 == " + apiresult1);
                     if(apiresult1 != null && !"".equals(apiresult1) && !"null".equals(apiresult1)
@@ -364,13 +364,21 @@ public class BasicServiceImpl implements BasicService {
                         String apiresult2 = HttpClient.HttpPost(
                                 "/tplus/api/v2/saleOrder/Create",
                                 json,
-                                "3uWZf0mu",
-                                "F07A56582E5DDBC8F68358940138DBF5",
+                                "LwInPd77",
+                                "0C789D68F375CE6C1DC026DD1BAD2115",
                                 token);
                         LOGGER.info("2调用T+ 创建销售订单API的返回： apiresult2 == " + apiresult2);
                         if(apiresult2 != null && !"".equals(apiresult2) && !"null".equals(apiresult2)
                                 && !"".equals(JSONObject.parseObject(apiresult2).getString("message"))){
-                            result = "{ \"result\":\" "+ JSONObject.parseObject(apiresult2).getString("message") +" \" }";
+                            String tresult = JSONObject.parseObject(apiresult2).getString("message");//T+返回的接口错误日志
+
+                            List<Map<String,Object>> saPuOrderList = orderMapper.getSaPuOrderList(xcxSaParam.getCode(),"","");
+                            if(tresult.contains("不唯一") && (saPuOrderList == null || saPuOrderList.size() == 0)){
+                                result = "{ \"result\":\"官方API返回重复，但是实际上没有重复，我会在每天晚上12点定时处理这些单据，请于明日查询订单同步状态\" }";
+                                orderMapper.insertfordealrepeat(xcxSaParam.getCode(),json);
+                            }else{
+                                result = "{ \"result\":\" "+ JSONObject.parseObject(apiresult2).getString("message") +" \" }";
+                            }
                         }
                     }
                 }
@@ -392,14 +400,14 @@ public class BasicServiceImpl implements BasicService {
                 }
                 if(orderMapper.getSapuOrderAfterList(xcxSaParam.getCode()) == 0){
                     //此订单没有后续单据，只有销售订单，则创建红字的销售订单
-                    xcxSaParam.setCode(xcxSaParam.getCode()+"-1");
+                    xcxSaParam.setCode(xcxSaParam.getCode()+"-1");  // 固定 -1 有可能重复哦 ！
                     String json = MapToJson.createSaPUOrderDTO(xcxSaParam,userMap);
                     LOGGER.info("调用T+ 创建 红字的销售订单API的json == " + json);
                     String apiresult1 = HttpClient.HttpPost(
                                 "/tplus/api/v2/saleOrder/Create",
                                 json,
-                                "3uWZf0mu",
-                                "F07A56582E5DDBC8F68358940138DBF5",
+                                "LwInPd77",
+                                "0C789D68F375CE6C1DC026DD1BAD2115",
                                 token);
                     LOGGER.info("1调用T+ 创建销售订单API的返回： apiresult1 == " + apiresult1);
                     if(apiresult1 != null && !"".equals(apiresult1) && !"null".equals(apiresult1)
@@ -408,8 +416,8 @@ public class BasicServiceImpl implements BasicService {
                         String apiresult2 = HttpClient.HttpPost(
                                 "/tplus/api/v2/saleOrder/Create",
                                 json,
-                                "3uWZf0mu",
-                                "F07A56582E5DDBC8F68358940138DBF5",
+                                "LwInPd77",
+                                "0C789D68F375CE6C1DC026DD1BAD2115",
                                 token);
                         LOGGER.info("2调用T+ 创建销售订单API的返回： apiresult2 == " + apiresult2);
                         if(apiresult2 != null && !"".equals(apiresult2) && !"null".equals(apiresult2)
@@ -427,15 +435,15 @@ public class BasicServiceImpl implements BasicService {
                         HttpClient.HttpPost(
                                 "/tplus/api/v2/SaleDeliveryOpenApi/Create",
                                 json,
-                                "3uWZf0mu",
-                                "F07A56582E5DDBC8F68358940138DBF5",
+                                "LwInPd77",
+                                "0C789D68F375CE6C1DC026DD1BAD2115",
                                 token);
                     }catch (Exception e){
                         HttpClient.HttpPost(
                                 "/tplus/api/v2/SaleDeliveryOpenApi/Create",
                                 json,
-                                "3uWZf0mu",
-                                "F07A56582E5DDBC8F68358940138DBF5",
+                                "LwInPd77",
+                                "0C789D68F375CE6C1DC026DD1BAD2115",
                                 token);
                     }
                 }
@@ -457,8 +465,8 @@ public class BasicServiceImpl implements BasicService {
             String json = MapToJson.createExpenseDTO(params);
             result = HttpClient.HttpPost("/tplus/api/v2/expenseVoucher/CreateExpenseVoucher",
                     json,
-                    "3uWZf0mu",
-                    "F07A56582E5DDBC8F68358940138DBF5",
+                    "LwInPd77",
+                    "0C789D68F375CE6C1DC026DD1BAD2115",
                     params.get("token"));
         } catch (Exception e) {
             e.printStackTrace();
@@ -476,8 +484,8 @@ public class BasicServiceImpl implements BasicService {
             String json = MapToJson.createIncomeDTO(params);
             result = HttpClient.HttpPost("/tplus/api/v2/incomeVoucher/CreateIncomeVoucher",
                     json,
-                    "3uWZf0mu",
-                    "F07A56582E5DDBC8F68358940138DBF5",
+                    "LwInPd77",
+                    "0C789D68F375CE6C1DC026DD1BAD2115",
                     params.get("token"));
         } catch (Exception e) {
             e.printStackTrace();
@@ -494,8 +502,8 @@ public class BasicServiceImpl implements BasicService {
             String json = MapToJson.createWLDWDTO(params);
             result = HttpClient.HttpPost("/tplus/api/v2/partner/Create",
                     json,
-                    "3uWZf0mu",
-                    "F07A56582E5DDBC8F68358940138DBF5",
+                    "LwInPd77",
+                    "0C789D68F375CE6C1DC026DD1BAD2115",
                     params.get("token"));
             if(result != null && !"".equals(result) && !result.contains("error")){
                 result = "{ \"result\":\"创建成功！\" }";
@@ -518,8 +526,8 @@ public class BasicServiceImpl implements BasicService {
             String json = MapToJson.createDepartment(params);
             result = HttpClient.HttpPost("/tplus/api/v2/department/Create",
                     json,
-                    "3uWZf0mu",
-                    "F07A56582E5DDBC8F68358940138DBF5",
+                    "LwInPd77",
+                    "0C789D68F375CE6C1DC026DD1BAD2115",
                     params.get("token"));
             // result:"83"
             if(result != null && !"".equals(result) && result.contains("result")){
@@ -543,8 +551,8 @@ public class BasicServiceImpl implements BasicService {
             String json = MapToJson.createUser(params);
             result = HttpClient.HttpPost("tplus/api/v2/person/Create",
                     json,
-                    "3uWZf0mu",
-                    "F07A56582E5DDBC8F68358940138DBF5",
+                    "LwInPd77",
+                    "0C789D68F375CE6C1DC026DD1BAD2115",
                     params.get("token"));
             // result:"83"
             if(result != null && !"".equals(result) && result.contains("result")){
@@ -568,8 +576,8 @@ public class BasicServiceImpl implements BasicService {
             String json = "";//MapToJson.createInventory(jrb);
             result = HttpClient.HttpPost("/tplus/api/v2/inventory/Create",
                     json,
-                    "3uWZf0mu",
-                    "F07A56582E5DDBC8F68358940138DBF5",
+                    "LwInPd77",
+                    "0C789D68F375CE6C1DC026DD1BAD2115",
                     token);
             if(result != null && "".equals(result)){
                 result = "{ \"result\":\"创建成功！\" }";
@@ -600,8 +608,8 @@ public class BasicServiceImpl implements BasicService {
             }
             result = HttpClient.HttpPost("/tplus/api/v2/warehouse/Query",
                     json,
-                    "3uWZf0mu",
-                    "F07A56582E5DDBC8F68358940138DBF5",
+                    "LwInPd77",
+                    "0C789D68F375CE6C1DC026DD1BAD2115",
                     token);
             return result;
         }catch (Exception e) {
@@ -642,8 +650,8 @@ public class BasicServiceImpl implements BasicService {
             result = HttpClient.HttpPost(
                     "/tplus/api/v2/saleOrder/Create",
                     json,
-                    "3uWZf0mu",
-                    "F07A56582E5DDBC8F68358940138DBF5",
+                    "LwInPd77",
+                    "0C789D68F375CE6C1DC026DD1BAD2115",
                     token);
         } catch (Exception e) {
             e.printStackTrace();

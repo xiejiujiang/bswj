@@ -1,6 +1,7 @@
 package com.example.bswj.controller;
 
 import com.alibaba.fastjson.JSONObject;
+import com.example.bswj.Inventorysubscribe.InventoryJsonRootBean;
 import com.example.bswj.SAsubscribe.SACsubJsonRootBean;
 import com.example.bswj.entity.xcx.XcxSaParam;
 import com.example.bswj.entity.xcxpu.XcxPuParam;
@@ -50,6 +51,108 @@ public class TokenController {
     }
 
 
+
+    //给宏勇二开做的，自动生成 03下面 没有生成的BOM 生成BOM
+    @RequestMapping(value="/bom", method = {RequestMethod.GET,RequestMethod.POST})
+    public @ResponseBody String bom(HttpServletRequest request, HttpServletResponse response) {
+        LOGGER.info("------------------- 自动生成BOM -------------------");
+        List<String> noBomCodelist = orderMapper.getHYnoBomCodelist();
+        for(String inventoryCode : noBomCodelist){
+            try{
+                //通过存货code获取对应的材料明细code
+                Map<String,Object> paramsMap = orderMapper.getBomMapByCode(inventoryCode);
+                if(paramsMap != null ){// 说明 这个成品的编码 以及 对应 自定项的编码都拿到了
+                    //通过JAVA再来更新 这个存货的名称 和 助记码
+                    String priuserdefnvc1 = paramsMap.get("priuserdefnvc1").toString();
+                    String priuserdefnvc2 = paramsMap.get("priuserdefnvc2").toString();
+                    String priuserdefnvc3 = paramsMap.get("priuserdefnvc3").toString();
+                    String priuserdefnvc4 = paramsMap.get("priuserdefnvc4").toString();
+                    if(priuserdefnvc3.equals(priuserdefnvc4)){
+                        //name = @jinjiaoa + '-' + @gangban + '-' + @jicai
+                        String newName = priuserdefnvc3 + "-"+priuserdefnvc2+"-"+priuserdefnvc1;
+                        paramsMap.put("newName",newName);
+                        String zjm = ChineseCharacterUtil.getUpperCase(newName,false).toUpperCase();
+                        paramsMap.put("zjm",zjm);
+                        //orderMapper.updateInventoryName(paramsMap);
+                    }else{
+                        //name = @jinjiaoa + '/' + @jinjiaob + '-' + @gangban + '-' + @jicai
+                        String newName = priuserdefnvc3 + "/" + priuserdefnvc4 + "-"+priuserdefnvc2+"-"+priuserdefnvc1;
+                        paramsMap.put("newName",newName);
+                        String zjm = ChineseCharacterUtil.getUpperCase(newName,false).toUpperCase();
+                        paramsMap.put("zjm",zjm);
+                        //orderMapper.updateInventoryName(paramsMap);
+                    }
+                }
+
+                paramsMap.put("yurucode",orderMapper.getDefaultWarehouseByCode(inventoryCode));
+                paramsMap.put("yuchu1",orderMapper.getDefaultWarehouseByCode(paramsMap.get("invena1code").toString()));
+                paramsMap.put("yuchu3",orderMapper.getDefaultWarehouseByCode(paramsMap.get("invena3code").toString()));
+                paramsMap.put("yuchu4",orderMapper.getDefaultWarehouseByCode(paramsMap.get("invena4code").toString()));
+
+
+                String token = orderMapper.getTokenByAppKey("vuaNrz8F");//宏勇二开的 appkey
+                //销售订单的JSON
+                String json = MapToJson.createBomJson(paramsMap);
+                LOGGER.info("调用T+ 创建BOM 的json == " + json);
+                String apiresult1 = HttpClient.HttpPost(
+                        "/tplus/api/v2/bom/Create",
+                        json,
+                        "vuaNrz8F",//宏勇二开的 appkey
+                        "7255D06CA9195488A95988A1D790D84B",//宏勇二开的 AppSecret
+                        token);
+                LOGGER.info("1调用T+ 创建BOM的返回： apiresult1 == " + apiresult1);//1调用T+ 创建BOM的返回： apiresult1 == "8"
+                if(apiresult1 != null && !"".equals(apiresult1) && Integer.valueOf(apiresult1.replaceAll("\"","")) > 0){//成功！
+                    LOGGER.info("1 存货code ====== " + inventoryCode + " 的BOM创建成功！");
+                    //创建成功的话，就把 BOM子件的领料工序 固定成 1 ： idprocess = 1
+                    orderMapper.updateChildBomProcess(apiresult1.replaceAll("\"",""));
+                    //调用下 审核接口啊
+                    HttpClient.HttpPost(
+                            "/tplus/api/v2/bom/Audit",
+                            "{\n" +
+                                    "  \"dto\": {\n" +
+                                    "    \"Version\": \"1.0\",\n" +
+                                    "    \"Code\": \""+inventoryCode+"\"\n" +
+                                    "  }\n" +
+                                    "}",
+                            "vuaNrz8F",//宏勇二开的 appkey
+                            "7255D06CA9195488A95988A1D790D84B",//宏勇二开的 AppSecret
+                            token);
+                }else{
+                    //说明 访问接口失败了，就 再来一次
+                    String apiresult2 = HttpClient.HttpPost(
+                            "/tplus/api/v2/bom/Create",
+                            json,
+                            "vuaNrz8F",//宏勇二开的 appkey
+                            "7255D06CA9195488A95988A1D790D84B",//宏勇二开的 AppSecret
+                            token);
+                    LOGGER.info("2调用T+ 创建销售订单API的返回： apiresult2 == " + apiresult2);
+                    if(apiresult2 != null && !"".equals(apiresult2) && Integer.valueOf(apiresult2.replaceAll("\"","")) > 0){//成功！
+                        LOGGER.info("2 存货code ====== " + inventoryCode + " 的BOM创建成功！");
+                        orderMapper.updateChildBomProcess(apiresult2.replaceAll("\"",""));
+                        //调用下 审核接口啊
+                        HttpClient.HttpPost(
+                                "/tplus/api/v2/bom/Audit",
+                                "{\n" +
+                                        "  \"dto\": {\n" +
+                                        "    \"Version\": \"1.0\",\n" +
+                                        "    \"Code\": \""+inventoryCode+"\"\n" +
+                                        "  }\n" +
+                                        "}",
+                                "vuaNrz8F",//宏勇二开的 appkey
+                                "7255D06CA9195488A95988A1D790D84B",//宏勇二开的 AppSecret
+                                token);
+                    }else{
+                        String failueresult = JSONObject.parseObject(apiresult2).getString("message");
+                        LOGGER.info(" 存货code ====== " + inventoryCode + " 的BOM创建失败！原因：" + failueresult);
+                    }
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+        }
+        return "自动生成BOM";
+    }
+
     //T+ 的 消息订阅的接口。
     @RequestMapping(value="/ticket", method = {RequestMethod.GET,RequestMethod.POST})
     public @ResponseBody String reticket(HttpServletRequest request, HttpServletResponse response) {
@@ -60,13 +163,112 @@ public class TokenController {
             String params=buffer.readLine();
             JSONObject jsonObject = JSONObject.parseObject(params);
             String encryptMsg = jsonObject.getString("encryptMsg");
-            String destr = AESUtil.decrypt(encryptMsg,"123456789012345x");
+            String destr = AESUtils.aesDecrypt(encryptMsg,"123456789012345x");
+            //String destr = AESUtil.decrypt(encryptMsg,"123456789012345x");
             // {"id":"AC1C04B100013301500B4A9B012DB2EC","appKey":"A9A9WH1i","appId":"58","msgType":"SaleDelivery_Audit","time":"1649994072443","bizContent":{"externalCode":"","voucherID":"23","voucherDate":"2022/4/15 0:00:00","voucherCode":"SA-2022-04-0011"},"orgId":"90015999132","requestId":"86231b63-f0c2-4de1-86e9-70557ba9cd62"}
             JSONObject job = JSONObject.parseObject(destr);
-            if("SaleDelivery_Audit".equals(job.getString("msgType"))){
-                SACsubJsonRootBean jrb =  job.toJavaObject(SACsubJsonRootBean.class);//销货单的订阅信息DTO
-                // 处理 正常的 销货单审核 上传 ，图片上传 功能   和  单据不上传，只上传图片的功能。
+            //这个接口 专门用于 宏勇二开的。 自动生成BOM 的
+            if(job !=null && job.getString("msgType") != null && "Inventory_Create".equals(job.getString("msgType"))){
+                InventoryJsonRootBean ijb =  job.toJavaObject(InventoryJsonRootBean.class);//存货的订阅信息DTO
+                String inventoryCode = ijb.getBizContent().getCode();
+                //如果是产成品下面的 存货创建，才会创建BOM
+                if("03".equals(orderMapper.getInventoryLevel1ClassCode(inventoryCode))){
+                    //通过存货code获取对应的材料明细code
+                    Map<String,Object> paramsMap = orderMapper.getBomMapByCode(inventoryCode);
+                    if(paramsMap != null ){// 说明 这个成品的编码 以及 对应 自定项的编码都拿到了
+                        //通过JAVA再来更新 这个存货的名称 和 助记码
+                        String priuserdefnvc1 = paramsMap.get("priuserdefnvc1").toString();
+                        String priuserdefnvc2 = paramsMap.get("priuserdefnvc2").toString();
+                        String priuserdefnvc3 = paramsMap.get("priuserdefnvc3").toString();
+                        String priuserdefnvc4 = paramsMap.get("priuserdefnvc4").toString();
+                        if(priuserdefnvc3.equals(priuserdefnvc4)){
+                            //name = @jinjiaoa + '-' + @gangban + '-' + @jicai
+                            String newName = priuserdefnvc3 + "-"+priuserdefnvc2+"-"+priuserdefnvc1;
+                            paramsMap.put("newName",newName);
+                            String zjm = ChineseCharacterUtil.getUpperCase(newName,false).toUpperCase();
+                            paramsMap.put("zjm",zjm);
+                            orderMapper.updateInventoryName(paramsMap);
+                        }else{
+                            //name = @jinjiaoa + '/' + @jinjiaob + '-' + @gangban + '-' + @jicai
+                            if(priuserdefnvc4 != null && !"".equals(priuserdefnvc4)){
+                                String newName = priuserdefnvc3 + "/" + priuserdefnvc4 + "-"+priuserdefnvc2+"-"+priuserdefnvc1;
+                                paramsMap.put("newName",newName);
+                                String zjm = ChineseCharacterUtil.getUpperCase(newName,false).toUpperCase();
+                                paramsMap.put("zjm",zjm);
+                                orderMapper.updateInventoryName(paramsMap);
+                            }else{
+                                String newName = priuserdefnvc3 + "-"+priuserdefnvc2+"-"+priuserdefnvc1;
+                                paramsMap.put("newName",newName);
+                                String zjm = ChineseCharacterUtil.getUpperCase(newName,false).toUpperCase();
+                                paramsMap.put("zjm",zjm);
+                                orderMapper.updateInventoryName(paramsMap);
+                            }
+                        }
+                    }
 
+                    paramsMap.put("yurucode",orderMapper.getDefaultWarehouseByCode(inventoryCode));
+                    paramsMap.put("yuchu1",orderMapper.getDefaultWarehouseByCode(paramsMap.get("invena1code").toString()));
+                    paramsMap.put("yuchu3",orderMapper.getDefaultWarehouseByCode(paramsMap.get("invena3code").toString()));
+                    paramsMap.put("yuchu4",orderMapper.getDefaultWarehouseByCode(paramsMap.get("invena4code").toString()));
+
+
+                    String token = orderMapper.getTokenByAppKey("vuaNrz8F");//宏勇二开的 appkey
+                    //销售订单的JSON
+                    String json = MapToJson.createBomJson(paramsMap);
+                    LOGGER.info("调用T+ 创建BOM 的json == " + json);
+                    String apiresult1 = HttpClient.HttpPost(
+                            "/tplus/api/v2/bom/Create",
+                            json,
+                            "vuaNrz8F",//宏勇二开的 appkey
+                            "7255D06CA9195488A95988A1D790D84B",//宏勇二开的 AppSecret
+                            token);
+                    LOGGER.info("1调用T+ 创建BOM的返回： apiresult1 == " + apiresult1);//1调用T+ 创建BOM的返回： apiresult1 == "8"
+                    if(apiresult1 != null && !"".equals(apiresult1) && Integer.valueOf(apiresult1.replaceAll("\"","")) > 0){//成功！
+                        LOGGER.info("1 存货code ====== " + inventoryCode + " 的BOM创建成功！");
+                        //创建成功的话，就把 BOM子件的领料工序 固定成 1 ： idprocess = 1
+                        orderMapper.updateChildBomProcess(apiresult1.replaceAll("\"",""));
+                        //调用下 审核接口啊
+                        HttpClient.HttpPost(
+                                "/tplus/api/v2/bom/Audit",
+                                 "{\n" +
+                                         "  \"dto\": {\n" +
+                                         "    \"Version\": \"1.0\",\n" +
+                                         "    \"Code\": \""+inventoryCode+"\"\n" +
+                                         "  }\n" +
+                                         "}",
+                                "vuaNrz8F",//宏勇二开的 appkey
+                                "7255D06CA9195488A95988A1D790D84B",//宏勇二开的 AppSecret
+                                token);
+                    }else{
+                        //说明 访问接口失败了，就 再来一次
+                        String apiresult2 = HttpClient.HttpPost(
+                                "/tplus/api/v2/bom/Create",
+                                json,
+                                "vuaNrz8F",//宏勇二开的 appkey
+                                "7255D06CA9195488A95988A1D790D84B",//宏勇二开的 AppSecret
+                                token);
+                        LOGGER.info("2调用T+ 创建销售订单API的返回： apiresult2 == " + apiresult2);
+                        if(apiresult2 != null && !"".equals(apiresult2) && Integer.valueOf(apiresult2.replaceAll("\"","")) > 0){//成功！
+                            LOGGER.info("2 存货code ====== " + inventoryCode + " 的BOM创建成功！");
+                            orderMapper.updateChildBomProcess(apiresult2.replaceAll("\"",""));
+                            //调用下 审核接口啊
+                            HttpClient.HttpPost(
+                                    "/tplus/api/v2/bom/Audit",
+                                    "{\n" +
+                                            "  \"dto\": {\n" +
+                                            "    \"Version\": \"1.0\",\n" +
+                                            "    \"Code\": \""+inventoryCode+"\"\n" +
+                                            "  }\n" +
+                                            "}",
+                                    "vuaNrz8F",//宏勇二开的 appkey
+                                    "7255D06CA9195488A95988A1D790D84B",//宏勇二开的 AppSecret
+                                    token);
+                        }else{
+                            String failueresult = JSONObject.parseObject(apiresult2).getString("message");
+                            LOGGER.info(" 存货code ====== " + inventoryCode + " 的BOM创建失败！原因：" + failueresult);
+                        }
+                    }
+                }
             }
         }catch (Exception e){
             e.printStackTrace();
@@ -174,7 +376,7 @@ public class TokenController {
             String name = request.getParameter("name");
             String code = request.getParameter("code");
             String parentCode = request.getParameter("parentCode");
-            String token = orderMapper.getTokenByAppKey("3uWZf0mu");
+            String token = orderMapper.getTokenByAppKey("LwInPd77");
 
             if(sign != null && !"".equals(sign) && name != null && !"".equals(name) && code != null && !"".equals(code)
                     && parentCode != null && !"".equals(parentCode)
@@ -207,7 +409,7 @@ public class TokenController {
             sign = sign.replaceAll(" ","+");
             sign = sign.replaceAll("sign=","");
             //LOGGER.info("-------- 销售订单api (转义处理后) sign == " + sign);
-            String token = orderMapper.getTokenByAppKey("3uWZf0mu");//3uWZf0mu(正式)
+            String token = orderMapper.getTokenByAppKey("LwInPd77");//3uWZf0mu(测式001)
             if(sign != null && !"".equals(sign)){
                 String parmaJosnStr = EncryptUtil.decrypt(sign,key);
                 LOGGER.info("-------- 小程序订单信息解密后的Str == " + parmaJosnStr);
@@ -243,7 +445,7 @@ public class TokenController {
             sign = sign.replaceAll(" ","+");
             //LOGGER.info("-------- 获取仓库列表(空格转义后) sign == " + sign);
 
-            String token = orderMapper.getTokenByAppKey("3uWZf0mu");
+            String token = orderMapper.getTokenByAppKey("LwInPd77");
             if(sign != null && !"".equals(sign)){
                 String parmaJosnStr = EncryptUtil.decrypt(sign,key);
                 LOGGER.info("-------- 获取仓库列表解密后的Str == " + parmaJosnStr);
@@ -258,7 +460,6 @@ public class TokenController {
             return "{ \"result\":\"程序异常，请咨询开发！\"}";
         }
     }
-
 
     //订单查询接口
     @RequestMapping(value="/getSaPuOrderList", method = {RequestMethod.GET,RequestMethod.POST})
@@ -304,7 +505,7 @@ public class TokenController {
             sign = sign.replaceAll(" ","+");
             //LOGGER.info("-------- 账号获取列表(空格转义后) sign == " + sign);
 
-            String token = orderMapper.getTokenByAppKey("3uWZf0mu");
+            String token = orderMapper.getTokenByAppKey("LwInPd77");
             if(sign != null && !"".equals(sign)){
                 String parmaJosnStr = EncryptUtil.decrypt(sign,key);
                 LOGGER.info("-------- 获取账号获取列表解密后的Str == " + parmaJosnStr);
@@ -332,7 +533,7 @@ public class TokenController {
             sign = sign.replaceAll(" ","+");
             LOGGER.info("-------- 获取进货单列表(空格转义后) sign == " + sign);
 
-            String token = orderMapper.getTokenByAppKey("3uWZf0mu");
+            String token = orderMapper.getTokenByAppKey("LwInPd77");
             if(sign != null && !"".equals(sign)){
                 String parmaJosnStr = EncryptUtil.decrypt(sign,key);
                 LOGGER.info("-------- 小程序进货单创建接口解密后的Str == " + parmaJosnStr );
